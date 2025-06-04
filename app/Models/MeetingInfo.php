@@ -13,7 +13,12 @@ class MeetingInfo extends Model
     protected $fillable =[
         'description',
         'meeting_id',
-        'video_path'
+        'video_path',
+        'transcript_json'
+    ];
+
+    protected $casts = [
+        'transcript_json' => 'array',
     ];
 
     public function meeting()

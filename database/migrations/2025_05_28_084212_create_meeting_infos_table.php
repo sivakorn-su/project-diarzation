@@ -18,6 +18,7 @@ return new class extends Migration
                 ->onDelete('cascade');
             $table->string('description')->nullable();
             $table->string('video_path')->nullable();
+            $table->json('transcript_json')->nullable();
             $table->timestamps();
         });
     }

@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreMeetingInfoRequest;
 use App\Http\Requests\UpdateMeetingInfoRequest;
+use App\Models\Meeting;
 use App\Models\MeetingInfo;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class MeetingInfoController extends Controller
 {
@@ -27,7 +30,7 @@ class MeetingInfoController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreMeetingInfoRequest $request)
+    public function store(Request $request)
     {
         //
     }
@@ -51,9 +54,17 @@ class MeetingInfoController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateMeetingInfoRequest $request, MeetingInfo $meetingInfo)
+    public function update(Request $request, Meeting $meeting)
     {
-        //
+        $data = $request->validate([
+            'transcript' => 'required|array'
+        ]);
+        $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->first();
+        $meetingInfo->update([
+            'transcript_json' => $data['transcript'],
+        ]);
+
+        return redirect()->route('meetings.show', $meeting->id)->with('success', 'Meeting updated successfully.');
     }
 
     /**
