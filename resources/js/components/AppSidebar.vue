@@ -14,6 +14,11 @@ const mainNavItems: NavItem[] = [
         href: '/meetings',
         icon: CalendarDays,
     },
+    {
+        title: 'Dashboard',
+        href: '/dashboard',
+        icon: LayoutGrid,
+    },
 ];
 
 const footerNavItems: NavItem[] = [
