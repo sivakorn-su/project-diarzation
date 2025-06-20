@@ -62,7 +62,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 const form = useForm({
     video: null,
     transcript: null as any,
-    url: '',
+    url: 'https://inwneon-project-voice-diarzation.hf.space',
     statusMessage:'',
     statusType:'',
 });
@@ -178,18 +178,17 @@ const showFullView = ref(true);
                 class="grid gap-4 md:grid-cols-3"
             >
                 <div class="col-span-full flex flex-col items-start gap-2">
-                    <label class="block mb-2 font-semibold">Upload URL (base URL)</label>
-                    <input
-                        v-model="form.url"
-                        type="text"
-                        placeholder="Enter base URL (e.g. https://example.com)"
-                        class="border p-2 rounded w-full mb-4"
-                    />
+                    <label class="block mb-2 font-semibold">Status Model</label>
+<!--                    <input-->
+<!--                        v-model="form.url"-->
+<!--                        type="text"-->
+<!--                        placeholder="Enter base URL (e.g. https://example.com)"-->
+<!--                        class="border p-2 rounded w-full mb-4"-->
+<!--                    />-->
                     <div
-                        v-if="form.statusMessage"
-                        :class="['text-sm', form.statusType === 'success' ? 'text-green-600' : 'text-red-600']"
+                        :class="['text-sm my-2', form.statusType === 'success' ? 'text-green-600' : 'text-red-600']"
                     >
-                        {{ form.statusMessage }}
+                        {{ form.statusMessage ? form.statusMessage : 'Not Connecting Server Please Upload File.'}}
                     </div>
 
                     <label class="block mb-2 font-semibold">Select Video File</label>
