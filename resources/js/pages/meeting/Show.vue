@@ -83,9 +83,11 @@ const submitComment = async () => {
 
     if (!form.video) {
         alert('Please select a video file before uploading.');
+        form.processing = false;
         return;
     }if(!form.url){
         alert('Please enter a url before uploading.');
+        form.processing = false;
         return;
     }
 
@@ -195,7 +197,6 @@ const showFullView = ref(true);
                     <input
                         type="file"
                         name="file"
-                        accept="video/mp4"
                         @change="handleFileChange"
                         class="mt-2 w-full rounded-md border px-4 py-2 focus:ring-1 focus:ring-blue-600 focus:outline-none"
                     />
