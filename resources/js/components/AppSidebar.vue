@@ -10,14 +10,14 @@ import AppLogo from './AppLogo.vue';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Meeting',
-        href: '/meetings',
-        icon: CalendarDays,
-    },
-    {
         title: 'Dashboard',
         href: '/dashboard',
         icon: LayoutGrid,
+    },
+    {
+        title: 'Meeting',
+        href: '/meetings',
+        icon: CalendarDays,
     },
 ];
 

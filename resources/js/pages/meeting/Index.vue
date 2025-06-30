@@ -141,6 +141,7 @@ const renderEventContent = (eventInfo) => {
 };
 
 const calendarOptions = reactive({
+    timeZone: 'Asia/Bangkok',
     plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
     initialView: 'dayGridMonth',
     headerToolbar: {

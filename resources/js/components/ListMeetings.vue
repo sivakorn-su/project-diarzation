@@ -69,7 +69,8 @@ function handleSort(key: 'title'|'user'|'date') {
 }
 
 function goToMeeting(meetingId: number) {
-  router.visit(`/meeting/${meetingId}`);
+    if (!meetingId) return
+    router.visit(route('meetings.show', meetingId))
 }
 
 function formatDate(date: string) {
