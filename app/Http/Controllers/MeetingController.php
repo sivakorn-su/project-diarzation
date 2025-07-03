@@ -71,9 +71,13 @@ class MeetingController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Meeting $meeting)
+    public function edit(Request $request, Meeting $meeting)
     {
-        //
+        $meeting->load(['user', 'info']);
+        return Inertia::render('meeting/Edit', [
+            'meeting' => $meeting,
+            'authUser' => $request->user(),
+        ]);
     }
 
     /**

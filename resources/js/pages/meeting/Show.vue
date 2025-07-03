@@ -4,6 +4,10 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/vue3';
 import { ref,computed } from 'vue';
 import { Lightbulb, ListOrderedIcon,ListFilterIcon,FileUpIcon,Loader } from 'lucide-vue-next';
+import TranscriptPanel from '@/components/TranscriptPanel.vue'
+import MeetingStats from '@/components/MeetingStats.vue'
+import SpeakerCountList from '@/components/SpeakerCountList.vue'
+import MeetingSummaries from '@/components/MeetingSummaries.vue'
 
 
 const props = defineProps<{
@@ -181,12 +185,6 @@ const showFullView = ref(true);
             >
                 <div class="col-span-full flex flex-col items-start gap-2">
                     <label class="block mb-2 font-semibold">Status Model</label>
-<!--                    <input-->
-<!--                        v-model="form.url"-->
-<!--                        type="text"-->
-<!--                        placeholder="Enter base URL (e.g. https://example.com)"-->
-<!--                        class="border p-2 rounded w-full mb-4"-->
-<!--                    />-->
                     <div
                         :class="['text-sm my-2', form.statusType === 'success' ? 'text-green-600' : 'text-red-600']"
                     >
@@ -220,7 +218,7 @@ const showFullView = ref(true);
                     </p>
                 </div>
             </form>
-
+            
             <div class="relative flex min-h-[400px] flex-col gap-4 rounded-xl border border-gray-200 p-6 dark:border-gray-700 ">
                 <button
                     @click="showFullView = !showFullView"
@@ -232,109 +230,37 @@ const showFullView = ref(true);
                         class="h-5 w-5"
                     />
                 </button>
-
-                <h2 class="text-lg font-semibold text-blue-600 dark:text-white">Meeting Description:</h2>
+                
+                <h2 class="text-lg font-semibold text-blue-600 dark:text-white">{{ showFullView ? " Meeting Summary :" : "Meeting Transcript:"}}</h2>
                 <p class="text-gray-600 dark:text-gray-300">
                     {{ meeting.info?.description }}
                 </p>
-                <div v-if="meetings.info?.transcript_json?.data?.length" class="flex flex-wrap justify-between gap-4">
-                    <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm bg-white dark:bg-gray-900 w-full sm:w-60">
-                        <div class="my-4">
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                                จำนวนคนที่พูดในวิดีโอ
-                            </p>
-                            <h1 class="text-3xl font-semibold text-blue-600 dark:text-blue-400">
-                                ~ {{ meeting.info?.transcript_json.num_speakers ? meeting.info?.transcript_json.num_speakers : '-' }}
-                                <span class="text-base font-normal"> คน</span>
-                            </h1>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                                จำนวนประโยคที่พูดในวิดีโอ
-                            </p>
-                            <h1 class="text-3xl font-semibold text-blue-600 dark:text-blue-400">
-                                ~ {{ meeting.info?.transcript_json.total_sentence ? meeting.info?.transcript_json.total_sentence : '-' }}
-                                <span class="text-base font-normal"> ประโยค</span>
-                            </h1>
-                        </div>
-                    </div>
 
-                    <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm bg-white dark:bg-gray-900 flex-1 min-w-[300px] space-y-4">
-                        <p class="text-sm font-semibold text-gray-600 dark:text-gray-300">
-                            จำนวนครั้งที่แต่ละคนพูด
-                        </p>
-
-                        <div
-                            v-for="(item, index) in meeting.info?.transcript_json.count_speaker"
-                            :key="index"
-                            class="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                        >
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm shadow">
-                                    {{ item.speaker.split('_')[1] }}
-                                </div>
-                                <div class="flex flex-col">
-                              <span class="text-sm font-medium text-gray-800 dark:text-gray-100">
-                                {{ item.speaker }}
-                              </span>
-                                 <span class="text-xs text-gray-500 dark:text-gray-400">
-                                Speaker ID
-                              </span>
-                                                    </div>
-                                                </div>
-                                                <span class="text-sm text-gray-700 dark:text-gray-200 font-mono">
-                            {{ item.count }} ครั้ง
-                          </span>
-                                            </div>
-                    </div>
-                </div>
-
-                <div v-if="meetings.info?.transcript_json?.data?.length && !showFullView" class="mt-6 space-y-2">
-                    <div class="flex items-center gap-2 rounded-md   max-w-xs">
-                        <component
-                            :is="ListFilterIcon"
-                            class="h-5 w-5 text-gray-500"
+                <div v-if="meetings.info?.transcript_json?.data?.length && !showFullView" class="mt-6">
+                    <div class="flex flex-col sm:flex-row gap-6 w-full h-[750px]">
+                        <TranscriptPanel
+                            :speakers="speakers"
+                            v-model:selectedSpeaker="selectedSpeaker"
+                            :filteredTranscript="filteredTranscript"
+                            :ListFilterIcon="ListFilterIcon"
+                            :videoPath="meetings.info?.transcript_json?.video_path"
                         />
-                        <select
-                            id="speaker-select"
-                            v-model="selectedSpeaker"
-                            class="flex-1 rounded-md border border-gray-300 bg-white py-2 px-3 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition"
-                        >
-                            <option value="">
-                                All Speakers
-                            </option>
-                            <option v-for="speaker in speakers" :key="speaker" :value="speaker">
-                                {{ speaker }}
-                            </option>
-                        </select>
-                    </div>
-
-                    <div v-if="filteredTranscript.length" class="mt-6 space-y-2">
-                        <div
-                            v-for="(item, index) in filteredTranscript"
-                            :key="index"
-                            class="rounded-md border p-4 shadow flex items-center gap-3"
-                        >
-                            <img
-                                src="/avatar-boy-svgrepo-com.svg"
-                                alt="Avatar"
-                                class="w-8 h-8 rounded-full object-cover"
-                            />
-                            <div class="flex-1 overflow-hidden">
-                                <p class="truncate">
-                                    <strong>{{ item.speaker }}</strong> : {{ item.start }}s - {{ item.end }}s
-                                </p>
-                                <p class="break-words">{{ item.text }}</p>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
-                <div v-else-if="meetings.info?.transcript_json?.data?.length && showFullView" class="mt-6 space-y-3 text-base leading-relaxed text-gray-800 dark:text-gray-200 border rounded-md p-4">
-                    <h2 class="text-lg font-semibold text-blue-600 dark:text-white">Meeting Summaries:</h2>
-                    <div v-for="(item, index) in meetings.info?.transcript_json?.summaries" :key="index" >
-                        <p> {{ item }}</p>
+                <div v-else-if="meetings.info?.transcript_json?.data?.length && showFullView" class="mt-6 space-y-3 text-base leading-relaxed text-gray-800 dark:text-gray-200  rounded-md p-4">
+                    <div class="flex flex-wrap justify-between gap-4 mb-4">
+                        <MeetingStats
+                            :numSpeakers="meeting.info?.transcript_json.num_speakers"
+                            :totalSentence="meeting.info?.transcript_json.total_sentence"
+                        />
+                        <SpeakerCountList
+                            :countSpeaker="meeting.info?.transcript_json.count_speaker"
+                        />
                     </div>
+                    <MeetingSummaries
+                        :summaries="meetings.info?.transcript_json?.summaries"
+                    />
                 </div>
             </div>
         </div>
