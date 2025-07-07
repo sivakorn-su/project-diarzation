@@ -17,7 +17,7 @@ return new class extends Migration
                 ->constrained('meetings')
                 ->onDelete('cascade');
             $table->string('description')->nullable();
-            $table->string('video_path')->nullable();
+            $table->string('media_paths')->nullable();
             $table->json('transcript_json')->nullable();
             $table->timestamps();
         });

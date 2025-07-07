@@ -42,12 +42,14 @@ class MeetingController extends Controller
             'title' => 'required|string|max:255',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
+            'level'=>'required|string'
         ]);
 
         $meeting = Meeting::create([
             'title' => $validated['title'],
             'start_date' => $validated['start_date'],
             'end_date' => $validated['end_date'],
+            'level'=>$validated['level'],
             'user_id' => auth()->id(),
         ]);
         MeetingInfo::create(['meeting_id'=>$meeting->id]);
@@ -89,9 +91,16 @@ class MeetingController extends Controller
             'title' => 'required|string|max:255',
             'start_date' => 'required|date',
             'end_date' => 'required|date',
+            'level'=>'required|string',
+            'description'=>'nullable|string',
         ]);
         $meeting->update($validated);
-
+        
+        if (isset($validated['description'])) {
+            $meeting->info->update([
+                'description' => $validated['description'],
+            ]);
+        }
         return redirect()->route('meetings', $meeting->id)->with('success', 'Meeting updated successfully.');
     }
 

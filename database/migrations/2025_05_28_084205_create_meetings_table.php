@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('meetings', function (Blueprint $table) {
             $table->id();
             $table->string('title');
-            $table->date('start_date');
-            $table->date('end_date')->nullable();
+            $table->dateTimeTz('start_date');
+            $table->dateTimeTz('end_date')->nullable();
             $table->string('level')->nullable();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->timestamps();

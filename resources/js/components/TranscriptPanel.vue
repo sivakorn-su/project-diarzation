@@ -37,7 +37,7 @@
         </option>
       </select>
     </div>
-    <div v-if="filteredTranscript.length" class="space-y-2 overflow-y-auto">
+    <div v-if="filteredTranscript.length" class="space-y-2 overflow-y-auto p-4">
       <div
         v-for="(item, index) in filteredTranscript"
         :key="index"

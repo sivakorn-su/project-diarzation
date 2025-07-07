@@ -44,10 +44,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 function handleUpdate() {
   form.put(`/meetings/${form.id}`);
+  form.reset();
 }
 
 function handleCancel() {
-  router.visit('/meeting');
+    router.visit(route('meetings'))
 }
 
 function toUTCString(localDateTime: string): string {
@@ -102,7 +103,7 @@ function toLocalInputValue(utcString: string): string {
             </div>
           </div>
           <!-- Recurrence -->
-          <div class="flex items-center gap-4">
+          <!-- <div class="flex items-center gap-4">
             <label class="text-xs font-medium text-gray-600 dark:text-gray-400">Recurrence</label>
             <select class="rounded border border-gray-300 dark:border-gray-700 px-2 py-1 text-sm bg-white dark:bg-gray-900">
               <option>Does not repeat</option>
@@ -111,14 +112,14 @@ function toLocalInputValue(utcString: string): string {
               <option>Weekly</option>
               <option>Monthly</option>
             </select>
-          </div>
+          </div> -->
           <!-- Location -->
-          <div>
+          <!-- <div>
             <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Location</label>
             <input type="text" placeholder="Add a location" class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-400 focus:outline-none shadow-sm" />
-          </div>
+          </div> -->
           <!-- Notification -->
-          <div class="flex items-center gap-2">
+          <!-- <div class="flex items-center gap-2">
             <label class="text-xs font-medium text-gray-600 dark:text-gray-400">Notification</label>
             <select class="rounded border border-gray-300 dark:border-gray-700 px-2 py-1 text-sm bg-white dark:bg-gray-900">
               <option>Notification</option>
@@ -131,7 +132,7 @@ function toLocalInputValue(utcString: string): string {
               <option>day</option>
             </select>
             <button type="button" class="text-xs text-blue-600 hover:underline ml-2">Add notification</button>
-          </div>
+          </div> -->
           <!-- Level -->
           <div>
             <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Level</label>
@@ -146,7 +147,7 @@ function toLocalInputValue(utcString: string): string {
             </select>
           </div>
           <!-- Participants (placeholder) -->
-          <div class="flex flex-col md:flex-row gap-4">
+          <!-- <div class="flex flex-col md:flex-row gap-4">
             <div class="flex-1">
               <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Participants</label>
               <input type="text" placeholder="Add participants" class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-400 focus:outline-none shadow-sm" />
@@ -165,7 +166,7 @@ function toLocalInputValue(utcString: string): string {
                 View the list of participants
               </label>
             </div>
-          </div>
+          </div> -->
           <!-- Description -->
           <div>
             <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Description</label>

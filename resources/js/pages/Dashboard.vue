@@ -3,6 +3,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
 import ListMeetings from '../components/ListMeetings.vue';
+import ServiceStatusCard from '../components/ServiceStatusCard.vue';
 
 const props = defineProps<{
   meetings: any[],
@@ -24,7 +25,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4 bg-gray-50 dark:bg-gray-950">
             <!-- Stats Row -->
-            <div class="grid gap-4 md:grid-cols-2 grid-cols-1">
+            <div class="grid gap-4 md:grid-cols-3 grid-cols-1">
                 <!-- Total Meetings Card -->
                 <div class="flex items-center gap-4 rounded-xl bg-white dark:bg-gray-900 shadow p-6 border border-blue-100 dark:border-blue-900">
                     <div class="flex items-center justify-center h-14 w-14 rounded-full bg-blue-100 dark:bg-blue-900">
@@ -45,6 +46,8 @@ const breadcrumbs: BreadcrumbItem[] = [
                         <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ props.totalUsers }}</div>
                     </div>
                 </div>
+                <!-- Service Status Card -->
+                <ServiceStatusCard />
             </div>
             <!-- Recent Meetings Table -->
             <div class="rounded-xl bg-white dark:bg-gray-900 shadow p-6 border border-gray-100 dark:border-gray-800">
