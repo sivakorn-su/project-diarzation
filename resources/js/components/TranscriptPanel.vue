@@ -26,7 +26,9 @@
     </template>
   </div>
   <div class="flex-1 flex flex-col">
-    <div class="flex items-center gap-2 rounded-md max-w-xs mb-4">
+   
+    <div v-if="props.transcript_json" class="space-y-2 overflow-y-auto p-4">
+      <div  class="flex flex-row items-center gap-4 justify-between rounded-md max-w-xs mb-4">
       <component
         :is="ListFilterIcon"
         class="h-5 w-5 text-gray-500"
@@ -45,7 +47,6 @@
         </option>
       </select>
     </div>
-    <div v-if="filteredTranscript.length" class="space-y-2 overflow-y-auto p-4">
       <button
           @click="exportDocx"
           class="flex items-center justify-center ml-auto text-gray-400 hover:text-blue-600"
