@@ -39,7 +39,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('Status');
     })->name('status');
     Route::get('/check-upload-limit', function () {
-        return ini_get('upload_max_filesize') . ' / ' . ini_get('post_max_size').php_ini_loaded_file();
+        return [
+            'upload_max_filesize' => ini_get('upload_max_filesize'),
+            'post_max_size' => ini_get('post_max_size'),
+            'ini_loaded_file' => php_ini_loaded_file(),
+            'ini_scanned_files' => php_ini_scanned_files(),
+        ];
     });
     
 });
