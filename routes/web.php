@@ -21,7 +21,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/meetings/{meeting}', [MeetingController::class, 'show'])->name('meetings.show');
 
     Route::post('/meetings/{meeting}/infos', [MeetingInfoController::class, 'update'])->name('description.update');
-    Route::post('/meetings/{meeting}/infos', [MeetingInfoController::class, 'transcript'])->name('transcript.update');
+    Route::post('/meetings/{meeting}/transcript', [MeetingInfoController::class, 'transcript'])->name('transcript.update');
     Route::put('/meetings/{meeting}/transcript/update', [MeetingInfoController::class, 'transcriptUpdate'])->name('transcript.edit');
 
     Route::get('/meetings/{meeting}/edit', [MeetingController::class, 'edit'])->name('meetings.edit');

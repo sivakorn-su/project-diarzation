@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 
 import { Head, useForm, } from '@inertiajs/vue3';
-import { ref,computed } from 'vue';
+import { ref } from 'vue';
 import { Lightbulb, ListOrderedIcon,ListFilterIcon,FileUpIcon,Loader } from 'lucide-vue-next';
 import TranscriptPanel from '@/components/TranscriptPanel.vue'
 import MeetingStats from '@/components/MeetingStats.vue'
@@ -179,14 +179,6 @@ const speakers = Array.isArray(transcript?.speaker_array)
 
 const selectedSpeaker = ref('');
 
-const filteredTranscript = computed(() => {
-    if (!transcript || !Array.isArray(transcript.data)) return [];
-    if (!selectedSpeaker.value) {
-        return transcript.data;
-    }
-    return transcript.data.filter((item: { speaker: string }) => item.speaker === selectedSpeaker.value);
-});
-
 const showFullView = ref(true);
 </script>
 
@@ -260,19 +252,21 @@ const showFullView = ref(true);
                 <h2 class="text-lg font-semibold text-blue-600 dark:text-white">{{ showFullView ? " Meeting Transcript :" : "Meeting Summary:"}}</h2>
 
                 <div v-if="meetings.info?.media_paths && showFullView" class="mt-6">
+                
                     <div class="flex flex-col sm:flex-row gap-6 w-full h-[750px]">
                         <TranscriptPanel
                             :meeting-id="meeting.id"
                             :speakers="speakers"
                             v-model:selectedSpeaker="selectedSpeaker"
-                            :filteredTranscript="Array.isArray(meeting.info?.transcript_json) ? meeting.info.transcript_json : (meeting.info?.transcript_json ? JSON.parse(meeting.info.transcript_json) : [])"
+                            :transcriptData="meeting.info.transcript_json.data"
                             :ListFilterIcon="ListFilterIcon"
                             :videoPath="meeting.info?.media_paths"
+                            :transcript_json="meeting.info.transcript_json"
                         />
                     </div>
                 </div>
 
-                <div v-else-if="meetings.info?.transcript_json?.data?.length && !showFullView" class="mt-6 space-y-3 text-base leading-relaxed text-gray-800 dark:text-gray-200  rounded-md p-4">
+                <div v-else-if="meetings.info?.transcript_json && !showFullView" class="mt-6 space-y-3 text-base leading-relaxed text-gray-800 dark:text-gray-200  rounded-md p-4">
                     <div class="flex flex-wrap justify-between gap-4 mb-4">
                         <MeetingStats
                             :numSpeakers="meeting.info?.transcript_json.num_speakers"

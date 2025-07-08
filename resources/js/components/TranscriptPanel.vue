@@ -119,7 +119,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, watch } from 'vue';
+import { ref, computed, reactive, watch, PropType } from 'vue';
 import { RefreshCcw, Pencil, Trash } from 'lucide-vue-next';
 import { useForm } from '@inertiajs/vue3';
 const meetingVideo = ref<HTMLVideoElement | HTMLAudioElement | null>(null);
@@ -136,21 +136,11 @@ const emit = defineEmits(['update:selectedSpeaker']);
 
 const props = defineProps({
   speakers: {
-    type: Array as () => string[],
+    type: Array as PropType<string[]>,
     required: true
   },
   selectedSpeaker: {
     type: String,
-    required: true
-  },
-  filteredTranscript: {
-    type: Array as () => {
-      start: number | string;
-      end: number | string;
-      speaker: string;
-      filename?: string;
-      text: string;
-    }[],
     required: true
   },
   ListFilterIcon: {
@@ -164,6 +154,27 @@ const props = defineProps({
   meetingId: {
     type: [String, Number],
     required: true
+  },
+  transcript_json: {
+    type: Object as PropType<{
+      data: Array<{
+        start: number | string;
+        end: number | string;
+        speaker: string;
+        filename: string;
+        text: string;
+      }>;
+      count_speaker: Array<{
+        speaker: string;
+        count: number | string;
+      }>;
+      summaries: string[];
+      video_path: string;
+      num_speakers: number;
+      speaker_array: string[];
+      total_sentence: number;
+    }>,
+    required: false
   }
 });
 
@@ -176,9 +187,29 @@ const mediaType = computed(() => {
 });
 
 function jumpToTime(time: number | string) {
-  if (meetingVideo.value) {
-    (meetingVideo.value as HTMLMediaElement).currentTime = Number(time);
-    (meetingVideo.value as HTMLMediaElement).play();
+  if (!meetingVideo.value) return console.error("No media element found");
+  console.log("mediaType:", mediaType.value);
+  console.log("meetingVideo:", meetingVideo.value);
+  const media = meetingVideo.value as HTMLMediaElement;
+  const seekTime = Number(time);
+
+  if (Number.isNaN(seekTime)) return console.error("Invalid time", time);
+
+  if (media.readyState >= 1) {
+    media.currentTime = seekTime;
+    media.play().catch((e) => {
+      console.error('Autoplay blocked or other error:', e);
+    });
+  } else {
+    // รอ metadata โหลดก่อน
+    const onLoadedMetadata = () => {
+      media.currentTime = seekTime;
+      media.play().catch((e) => {
+        console.error('Autoplay blocked after loadedmetadata:', e);
+      });
+      media.removeEventListener('loadedmetadata', onLoadedMetadata);
+    };
+    media.addEventListener('loadedmetadata', onLoadedMetadata);
   }
 }
 
@@ -199,9 +230,17 @@ const success = ref(false);
 const editingIndex = ref<number|null>(null);
 const editItem = reactive({ start: '', end: '', speaker: '', text: '' });
 
-const localTranscript = ref([...props.filteredTranscript]);
+const filteredTranscript = computed(() => {
+  if (!props.transcript_json?.data || !Array.isArray(props.transcript_json?.data)) return [];
+  if (!props.selectedSpeaker) {
+    return props.transcript_json?.data;
+  }
+  return props.transcript_json?.data.filter((item: { speaker: string }) => item.speaker === props.selectedSpeaker);
+});
 
-watch(() => props.filteredTranscript, (newVal) => {
+const localTranscript = ref([...filteredTranscript.value]);
+
+watch(filteredTranscript, (newVal) => {
   localTranscript.value = [...newVal];
 });
 
@@ -249,7 +288,7 @@ const reTranscript = async () => {
   loading.value = true;
   error.value = null;
   success.value = false;
-  form.post(`/meetings/${props.meetingId}/infos`, {
+  form.post(`/meetings/${props.meetingId}/transcript`, {
     preserveScroll: true,
     onSuccess: () => {
       success.value = true;
