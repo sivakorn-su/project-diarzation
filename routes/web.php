@@ -19,10 +19,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/meetings', [MeetingController::class, 'store'])->name('meetings.store');
 
     Route::get('/meetings/{meeting}', [MeetingController::class, 'show'])->name('meetings.show');
-    Route::post('/meetings/{meeting}/infos', [MeetingInfoController::class, 'store'])->name('description.store');
+    Route::post('/meetings/{meeting}/infos', [MeetingInfoController::class, 'update'])->name('description.update');
 
     Route::get('/meetings/{meeting}/edit', [MeetingController::class, 'edit'])->name('meetings.edit');
     Route::put('/meetings/{meeting}', [MeetingController::class, 'update'])->name('meetings.update');
+
+    // Upload media page for meeting info
+    Route::get('/meeting/{meeting}/upload-media', function ($meeting) {
+        return Inertia::render('meeting/UploadMedia', [
+            'meetingId' => (int) $meeting,
+        ]);
+    })->name('meeting.uploadMedia');
 
     Route::delete('/meetings/{meeting}', [MeetingController::class, 'destroy'])->name('meetings.destroy');
     Route::get('/phpinfo', function () {
@@ -31,6 +38,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/status', function () {
         return Inertia::render('Status');
     })->name('status');
+    Route::get('/check-upload-limit', function () {
+        return ini_get('upload_max_filesize') . ' / ' . ini_get('post_max_size');
+    });
+    
 });
 
 require __DIR__.'/settings.php';

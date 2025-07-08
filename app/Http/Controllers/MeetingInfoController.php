@@ -31,34 +31,9 @@ class MeetingInfoController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request, Meeting $meeting)
+    public function store(Request $request)
     {
-        $data = $request->validate([
-            'transcript' => 'required|array',
-            'video' => 'required|file|mimetypes:video/mp4,video/quicktime,audio/mpeg,audio/wav|max:10240', // 10MB per file (in KB)
-        ]);
-        
-        $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->first();
-        if (!$meetingInfo) {
-            $meetingInfo = MeetingInfo::create([
-                'meeting_id' => $meeting->id,
-                'transcript_json' => $data['transcript'],
-            ]);
-        } else {
-            $meetingInfo->update([
-                'transcript_json' => $data['transcript'],
-            ]);
-        }
-
-        if ($request->hasFile('video')) {
-            $meetingInfo->clearMediaCollection('media'); // remove old media if needed
-            $meetingInfo->addMediaFromRequest('video')->toMediaCollection('media');
-        }
-
-        return Inertia::render('meeting/Show', [
-            'meetings' => $meeting->load('info', 'user'),
-            'authUser' => auth()->user(),
-        ]);
+        //
     }
 
     /**
@@ -82,28 +57,33 @@ class MeetingInfoController extends Controller
      */
     public function update(Request $request, Meeting $meeting)
     {
-        $data = $request->validate([
-            'transcript' => 'required|array',
-            'video' => 'required|file|mimetypes:video/mp4,video/quicktime,audio/mpeg,audio/wav|max:10240', // 10MB ต่อไฟล์ (หน่วย KB)
-        ]);
+        // Force JSON response for Inertia file upload
+        if ($request->hasHeader('X-Inertia')) {
+            $request->headers->set('Accept', 'application/json');
+        }
 
+        $data = $request->validate([
+            'transcript' => 'nullable|string',
+            'video' => 'nullable|file|mimetypes:video/mp4,video/quicktime,audio/mpeg,audio/wav|max:10240',
+        ]);
         $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->first();
 
         $updateData = [
             'transcript_json' => $data['transcript'],
         ];
-
-        $meetingInfo->update($updateData);
-
+        
         if ($request->hasFile('video')) {
-            $meetingInfo->clearMediaCollection('media'); // remove old media if needed
-            $meetingInfo->addMediaFromRequest('video')->toMediaCollection('media');
+            $file = $request->file('video');
+            $type = explode('/', $file->getMimeType())[0];
+            $folder = $type === 'video' ? 'videos' : 'audios';
+            $path = $file->store($folder, 'public');
+            $publicPath = '/storage/' . $path;
+            $updateData['media_paths'] = $publicPath;
         }
-
-        return Inertia::render('meeting/Show', [
-            'meetings' => $meeting->load('info', 'user'),
-            'authUser' => auth()->user(),
-        ]);
+        
+        $meetingInfo->update($updateData);
+        
+        return back()->with('success', 'Upload successful');
     }
 
     /**

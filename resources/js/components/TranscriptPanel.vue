@@ -1,6 +1,6 @@
 <template>
   <div class="w-full sm:w-2/3 max-w-3xl aspect-video bg-black rounded-lg overflow-hidden shadow-lg mb-4 flex items-center justify-center">
-    <template v-if="videoPath.value">
+    <template v-if="videoPath.length">
       <video ref="meetingVideo" controls class="w-full h-full object-contain">
         <source :src="videoPath" type="video/mp4">
         Your browser does not support the video tag.
@@ -18,6 +18,7 @@
     </template>
   </div>
   <div class="flex-1 flex flex-col">
+    {{ videoPath }}
     <div class="flex items-center gap-2 rounded-md max-w-xs mb-4">
       <component
         :is="ListFilterIcon"

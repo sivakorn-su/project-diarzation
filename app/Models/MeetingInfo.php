@@ -4,17 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Spatie\MediaLibrary\HasMedia;
-use Spatie\MediaLibrary\InteractsWithMedia;
 
-class MeetingInfo extends Model implements HasMedia
+class MeetingInfo extends Model
 {
     /** @use HasFactory<\Database\Factories\MeetingInfoFactory> */
-    use HasFactory, InteractsWithMedia;
+    use HasFactory;
 
     protected $fillable =[
         'description',
         'meeting_id',
+        'media_paths',
         'transcript_json'
     ];
 
