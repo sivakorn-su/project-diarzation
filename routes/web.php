@@ -24,6 +24,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/meetings/{meeting}/transcript', [MeetingInfoController::class, 'transcript'])->name('transcript.update');
     Route::put('/meetings/{meeting}/transcript/update', [MeetingInfoController::class, 'transcriptUpdate'])->name('transcript.edit');
 
+    // Export transcript as DOCX
+    Route::get('/meetings/{meeting}/transcript/export-docx', [MeetingInfoController::class, 'transcriptExport'])->name('transcript.exportDocx');
+
     Route::get('/meetings/{meeting}/edit', [MeetingController::class, 'edit'])->name('meetings.edit');
     Route::put('/meetings/{meeting}', [MeetingController::class, 'update'])->name('meetings.update');
 

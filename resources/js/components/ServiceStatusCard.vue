@@ -67,7 +67,7 @@ onMounted(() => {
         <span v-else-if="status === 'offline'" class="text-red-600">Offline</span>
         <span v-else class="text-gray-600">Unknown/Error</span>
       </div>
-      <div class="text-xs text-gray-400 mt-1">HTTP Code: <span class="font-mono text-blue-400">{{ httpCodeDisplay }}</span></div>
+      <div class="text-xs text-gray-400 mt-1">HTTP Code: <span class="font-mono text-blue-4s00">{{ httpCodeDisplay }}</span></div>
     </div>
   </div>
 </template> 

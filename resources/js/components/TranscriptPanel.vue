@@ -46,6 +46,14 @@
       </select>
     </div>
     <div v-if="filteredTranscript.length" class="space-y-2 overflow-y-auto p-4">
+      <button
+          @click="exportDocx"
+          class="flex items-center justify-center ml-auto text-gray-400 hover:text-blue-600"
+          :title="'Export transcript as DOCX'"
+          type="button"
+        >
+          <component :is="FileUpIcon" class="w-5 h-5" />
+        </button>
       <div
         v-for="(item, index) in filteredTranscript"
         :key="index"
@@ -120,7 +128,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch, PropType } from 'vue';
-import { RefreshCcw, Pencil, Trash } from 'lucide-vue-next';
+import { RefreshCcw, Pencil, Trash, FileUpIcon } from 'lucide-vue-next';
 import { useForm } from '@inertiajs/vue3';
 const meetingVideo = ref<HTMLVideoElement | HTMLAudioElement | null>(null);
 
@@ -128,7 +136,7 @@ interface TranscriptItem {
   start: number | string;
   end: number | string;
   speaker: string;
-  filename?: string;
+  filename: string;
   text: string;
 }
 
@@ -228,7 +236,13 @@ const error = ref<string | null>(null);
 const success = ref(false);
 
 const editingIndex = ref<number|null>(null);
-const editItem = reactive({ start: '', end: '', speaker: '', text: '' });
+const editItem = reactive<TranscriptItem>({
+  start: '',
+  end: '',
+  speaker: '',
+  filename: '',
+  text: ''
+});
 
 const filteredTranscript = computed(() => {
   if (!props.transcript_json?.data || !Array.isArray(props.transcript_json?.data)) return [];
@@ -248,12 +262,13 @@ function startEdit(index: number, item: TranscriptItem) {
   editingIndex.value = index;
   Object.assign(editItem, item);
 }
+
 function cancelEdit() {
   editingIndex.value = null;
 }
 async function saveEdit(index: number) {
   if (index !== null && localTranscript.value[index]) {
-    localTranscript.value[index] = { ...editItem };
+    localTranscript.value[index] = { ...editItem, filename: editItem.filename ?? '' };
     editingIndex.value = null;
     await saveTranscript();
   }
@@ -300,5 +315,10 @@ const reTranscript = async () => {
       loading.value = false;
     },
   });
+}
+
+function exportDocx() {
+  const url = `/meetings/${props.meetingId}/transcript/export-docx`;
+  window.open(url, '_blank');
 }
 </script> 

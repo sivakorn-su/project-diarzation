@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use GuzzleHttp\Client;
 use Illuminate\Support\Str;
+use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\IOFactory;
 
 class MeetingInfoController extends Controller
 {
@@ -93,7 +95,7 @@ class MeetingInfoController extends Controller
 
     public function transcript(Meeting $meeting)
     {
-        set_time_limit(300); // 300 seconds = 5 minutes, adjust as needed
+        set_time_limit(1800); // 300 seconds = 5 minutes, adjust as needed
 
         $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->first();
 
@@ -109,7 +111,7 @@ class MeetingInfoController extends Controller
 
         try {
             $client = new \GuzzleHttp\Client();
-            $response = $client->request('POST', 'https://d127626c7864.ngrok-free.app/upload_video/', [
+            $response = $client->request('POST', 'https://inwneon-project-voice-diarzation.hf.space/upload_video/', [
                 'multipart' => [
                     [
                         'name'     => 'file',
@@ -145,5 +147,50 @@ class MeetingInfoController extends Controller
         $meetingInfo->update($data);
 
         return Inertia::location(url()->previous());
+    }
+
+    public function transcriptExport(Meeting $meeting)
+    {
+        $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->first();
+        return $this->exportTranscriptDocx($meetingInfo);
+    }
+
+    /**
+     * Export transcript_json to DOCX and return as download
+     */
+    public function exportTranscriptDocx(MeetingInfo $meetingInfo)
+    {
+        $transcript = $meetingInfo->transcript_json;
+        if (is_string($transcript)) {
+            $transcript = json_decode($transcript, true);
+        }
+        if (!$transcript || !isset($transcript['data'])) {
+            return response()->json(['error' => 'No transcript data found.'], 404);
+        }
+
+        $phpWord = new PhpWord();
+        $section = $phpWord->addSection();
+        $section->addTitle('Meeting Transcript', 1);
+        $section->addTextBreak(1);
+        foreach ($transcript['data'] as $item) {
+            $speaker = $item['speaker'] ?? 'Unknown';
+            $start = $item['start'] ?? '';
+            $end = $item['end'] ?? '';
+            $text = $item['text'] ?? '';
+            $section->addText("Speaker: $speaker");
+            $section->addText("Time: $start - $end s");
+            $section->addText($text, ['spaceAfter' => 200]);
+            $section->addTextBreak(1);
+        }
+
+        $fileName = 'transcript_' . $meetingInfo->meeting_id . '_' . date('Ymd_His') . '.docx';
+        $tempPath = storage_path('app/tmp/' . $fileName);
+        if (!file_exists(dirname($tempPath))) {
+            mkdir(dirname($tempPath), 0777, true);
+        }
+        $writer = IOFactory::createWriter($phpWord, 'Word2007');
+        $writer->save($tempPath);
+
+        return response()->download($tempPath, $fileName)->deleteFileAfterSend(true);
     }
 }
