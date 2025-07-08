@@ -108,12 +108,12 @@ const renderEventContent = (eventInfo: any) => {
 
     const levelStyles: { [key: string]: { dot: string; bg: string } } = {
         info: {
-            dot: 'bg-green-500',
-            bg: 'bg-green-100',
+            dot: 'bg-sky-500',
+            bg: 'bg-sky-100',
         },
         warning: {
-            dot: 'bg-yellow-400',
-            bg: 'bg-yellow-100',
+            dot: 'bg-orange-400',
+            bg: 'bg-orange-100',
         },
         danger: {
             dot: 'bg-red-500',
@@ -515,7 +515,7 @@ function formatMeetingDateTime(start: string, end?: string): string {
 }
 
 .fc .fc-button:hover {
-    color: #6b7280; /* text-gray-500 */
+    color: oklch(70.7% 0.165 254.624); /* text-gray-500 */
     background-color: #f3f4f6; /* เพิ่มพื้นหลังบางๆ ให้ดูมีมิติ */
     border-color: #d1d5db;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
@@ -538,6 +538,10 @@ function formatMeetingDateTime(start: string, end?: string): string {
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-
+.fc-toolbar-title {
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: oklch(70.7% 0.165 254.624);
+}
 
 </style>
