@@ -122,25 +122,36 @@ class MeetingInfoController extends Controller
 
         $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->first();
 
+        $tempDir = storage_path('app/temp');
+        if (!file_exists($tempDir)) {
+            mkdir($tempDir, 0777, true);
+        }
+
         if (!$meetingInfo || !$meetingInfo->media_paths) {
             return response()->json(['error' => 'No media file found.'], 404);
         }
 
-        $mediaUrl = $meetingInfo->media_paths;
-        $tempPath = storage_path('app/temp/' . basename($mediaUrl));
+        $relativePath = $meetingInfo->media_paths;
+        $mediaUrl = env('SUPABASE_URL') . '/storage/v1/object/public' . Str::after($relativePath, '/storage');
         
-        if (!file_exists($tempPath)) {
-            return response()->json(['error' => 'Media file does not exist.'], 404);
-        }
+        $filename = basename(parse_url($mediaUrl, PHP_URL_PATH));
+        $tempPath = $tempDir . '/' . $filename;
 
         try {
+
+            Http::timeout(60)->sink($tempPath)->get($mediaUrl);
+
+            if (!file_exists($tempPath)) {
+                return response()->json(['error' => 'Download failed.'], 500);
+            }
+
             $client = new \GuzzleHttp\Client();
             $response = $client->request('POST', 'https://inwneon-project-voice-diarzation.hf.space/upload_video/', [
                 'multipart' => [
                     [
                         'name'     => 'file',
                         'contents' => fopen($tempPath, 'r'),
-                        'filename' => basename($tempPath),
+                        'filename' => $filename,
                     ],
                 ],
             ]);
