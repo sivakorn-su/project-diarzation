@@ -2,10 +2,13 @@
   <div class="w-full sm:w-2/3 max-w-3xl aspect-video bg-white rounded-lg overflow-hidden  mb-4 flex items-center justify-center">
     <template v-if="videoPath.length">
       <template v-if="mediaType === 'video'">
-        <video ref="meetingVideo" controls class="w-full h-full object-contain">
-          <source :src="videoPath" type="video/mp4">
-          Your browser does not support the video tag.
-        </video>
+        <video
+          ref="meetingVideo"
+          class="video-js vjs-default-skin w-full h-full object-contain"
+          controls
+          
+          preload="auto"
+        ></video>
       </template>
       <template v-else-if="mediaType === 'audio'">
         <audio ref="meetingVideo" controls class="w-2/3">
@@ -26,10 +29,8 @@
     </template>
   </div>
   <div class="flex-1 flex flex-col">
-   
-    <div v-if="props.transcript_json" class="space-y-2 overflow-y-auto p-4">
-      <div  class="flex flex-row items-center gap-4 justify-between rounded-md max-w-xs mb-4">
-      <component
+   <div class="flex flex-row max-w-sm items-center justify-start gap-4 mb-2">
+    <component
         :is="ListFilterIcon"
         class="h-5 w-5 text-gray-500"
       />
@@ -46,7 +47,6 @@
           {{ speaker }}
         </option>
       </select>
-    </div>
       <button
           @click="exportDocx"
           class="flex items-center justify-center ml-auto text-gray-400 hover:text-blue-600"
@@ -55,10 +55,17 @@
         >
           <component :is="FileUpIcon" class="w-5 h-5" />
         </button>
+   </div>
+    <div v-if="props.transcript_json" class="space-y-2 overflow-y-auto p-4">
+      <div  class="flex flex-row items-center gap-4 justify-between rounded-md max-w-xs mb-4">
+    </div>
       <div
         v-for="(item, index) in filteredTranscript"
         :key="index"
-        class="rounded-md border p-4 shadow flex items-center gap-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+        :class="[
+          'rounded-xl border p-4 shadow flex items-center gap-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800',
+          mediaType === 'video' && Number(currentTime) >= Number(item.start) && Number(currentTime) <= Number(item.end) ? 'bg-sky-50' : ''
+        ]"
         @click="jumpToTime(item.start)"
       >
         <img
@@ -128,10 +135,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, watch, PropType } from 'vue';
+import { ref, computed, reactive, watch, PropType, onMounted, onBeforeUnmount, watchEffect } from 'vue';
 import { RefreshCcw, Pencil, Trash, FileUpIcon } from 'lucide-vue-next';
 import { useForm } from '@inertiajs/vue3';
-const meetingVideo = ref<HTMLVideoElement | HTMLAudioElement | null>(null);
+import videojs from 'video.js';
+import 'video.js/dist/video-js.css';
+
+const meetingVideo = ref<HTMLVideoElement | null>(null);
+let player: any = null;
+const currentTime = ref(0);
 
 interface TranscriptItem {
   start: number | string;
@@ -190,30 +202,75 @@ const props = defineProps({
 const mediaType = computed(() => {
   if (!props.videoPath) return '';
   const ext = props.videoPath.split('.').pop()?.toLowerCase();
-  if (['mp4', 'webm', 'ogg'].includes(ext || '')) return 'video';
-  if (['mp3', 'wav', 'aac', 'm4a', 'flac'].includes(ext || '')) return 'audio';
-  return '';
+  if (["mp4", "webm", "ogg"].includes(ext || "")) return "video";
+  if (["mp3", "wav", "aac", "m4a", "flac"].includes(ext || "")) return "audio";
+  return "";
+});
+
+onMounted(() => {
+  watchEffect(() => {
+    if (mediaType.value === 'video' && meetingVideo.value) {
+      if (player) {
+        player.dispose();
+        player = null;
+      }
+      player = videojs(meetingVideo.value, {
+        controls: true,
+        autoplay: false,
+        preload: 'auto',
+        sources: [
+          {
+            src: props.videoPath,
+            type: 'video/mp4',
+          },
+        ],
+      });
+      player.on('timeupdate', () => {
+        currentTime.value = player.currentTime();
+      });
+    }
+  });
+});
+
+onBeforeUnmount(() => {
+  if (player) {
+    player.dispose();
+    player = null;
+  }
+});
+
+watch(() => props.videoPath, (newPath) => {
+  if (mediaType.value === 'video' && player && newPath) {
+    player.src({ src: newPath, type: 'video/mp4' });
+    player.load();
+  }
 });
 
 function jumpToTime(time: number | string) {
-  if (!meetingVideo.value) return console.error("No media element found");
-  console.log("mediaType:", mediaType.value);
-  console.log("meetingVideo:", meetingVideo.value);
+  if (mediaType.value === 'video') {
+    if (!player) return console.error('No video.js player found');
+    const seekTime = Number(time);
+    if (Number.isNaN(seekTime)) return console.error('Invalid time', time);
+    player.currentTime(seekTime);
+    player.play().catch((e: unknown) => {
+      console.error('Autoplay blocked or other error:', e);
+    });
+    return;
+  }
+  // fallback for audio
+  if (!meetingVideo.value) return console.error('No media element found');
   const media = meetingVideo.value as HTMLMediaElement;
   const seekTime = Number(time);
-
-  if (Number.isNaN(seekTime)) return console.error("Invalid time", time);
-
+  if (Number.isNaN(seekTime)) return console.error('Invalid time', time);
   if (media.readyState >= 1) {
     media.currentTime = seekTime;
-    media.play().catch((e) => {
+    media.play().catch((e: unknown) => {
       console.error('Autoplay blocked or other error:', e);
     });
   } else {
-    // รอ metadata โหลดก่อน
     const onLoadedMetadata = () => {
       media.currentTime = seekTime;
-      media.play().catch((e) => {
+      media.play().catch((e: unknown) => {
         console.error('Autoplay blocked after loadedmetadata:', e);
       });
       media.removeEventListener('loadedmetadata', onLoadedMetadata);

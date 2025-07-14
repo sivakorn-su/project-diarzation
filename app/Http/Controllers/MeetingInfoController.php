@@ -13,6 +13,7 @@ use GuzzleHttp\Client;
 use Illuminate\Support\Str;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;
+use Illuminate\Support\Facades\Http;
 
 class MeetingInfoController extends Controller
 {
@@ -75,9 +76,31 @@ class MeetingInfoController extends Controller
             $file = $request->file('video');
             $type = explode('/', $file->getMimeType())[0];
             $folder = $type === 'video' ? 'videos' : 'audios';
-            $path = $file->store($folder, 'public');
-            $publicPath = '/storage/' . $path;
-            $updateData['media_paths'] = $publicPath;
+            $filename = $folder . '/' . $file->hashName();
+
+            // Supabase Config
+            $supabaseUrl = env('SUPABASE_URL','https://kkrbjjtjpasqnwjawvpl.supabase.co');
+            $supabaseToken = env('SUPABASE_SERVICE_ROLE');
+            $bucket = env('SUPABASE_BUCKET', 'media');
+            
+            $uploadUrl = "{$supabaseUrl}/storage/v1/object/{$bucket}/{$filename}";
+            
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $supabaseToken,
+                'Content-Type' => $file->getMimeType(),
+            ])->withBody(
+                fopen($file->getRealPath(), 'r'), // 👈 stream raw file
+                $file->getMimeType()
+            )->put($uploadUrl);
+
+            
+
+            if ($response->failed()) {
+                return back()->withErrors(['video' => 'Upload to storage failed.'])->withInput();
+            }
+
+            $publicUrl = "{$supabaseUrl}/storage/v1/object/public/{$bucket}/{$filename}";
+            $updateData['media_paths'] = $publicUrl;
         }
         
         $meetingInfo->update($updateData);
@@ -111,7 +134,7 @@ class MeetingInfoController extends Controller
 
         try {
             $client = new \GuzzleHttp\Client();
-            $response = $client->request('POST', 'https://inwneon-project-voice-diarzation.hf.space/upload_video/', [
+            $response = $client->request('POST', 'https://8843a9fe0c0d.ngrok-free.app/upload_video/', [
                 'multipart' => [
                     [
                         'name'     => 'file',
