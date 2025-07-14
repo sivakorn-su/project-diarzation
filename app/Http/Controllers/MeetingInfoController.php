@@ -126,20 +126,21 @@ class MeetingInfoController extends Controller
             return response()->json(['error' => 'No media file found.'], 404);
         }
 
-        $filePath = storage_path('app/public/' . Str::after($meetingInfo->media_paths, '/storage/'));
+        $mediaUrl = $meetingInfo->media_paths;
+        $tempPath = storage_path('app/temp/' . basename($mediaUrl));
         
-        if (!file_exists($filePath)) {
+        if (!file_exists($tempPath)) {
             return response()->json(['error' => 'Media file does not exist.'], 404);
         }
 
         try {
             $client = new \GuzzleHttp\Client();
-            $response = $client->request('POST', 'https://8843a9fe0c0d.ngrok-free.app/upload_video/', [
+            $response = $client->request('POST', 'https://inwneon-project-voice-diarzation.hf.space/upload_video/', [
                 'multipart' => [
                     [
                         'name'     => 'file',
-                        'contents' => fopen($filePath, 'r'),
-                        'filename' => basename($filePath),
+                        'contents' => fopen($tempPath, 'r'),
+                        'filename' => basename($tempPath),
                     ],
                 ],
             ]);
@@ -153,6 +154,8 @@ class MeetingInfoController extends Controller
             $meetingInfo->update([
                 'transcript_json' => $result,
             ]);
+
+            unlink($tempPath);
 
             return Inertia::location(url()->previous());
         } catch (\Exception $e) {
