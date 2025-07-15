@@ -103,33 +103,32 @@
     </div>
     <div v-else>
       <div class="flex flex-col items-center w-full">
-        <button
-          class="w-full max-w-xs md:max-w-md rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow flex items-center justify-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition disabled:opacity-50 font-semibold text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          @click="reTranscript"
-          :disabled="loading"
-          type="button"
-        >
-          <span class="flex items-center gap-2">
-            <span v-if="loading" class="flex items-center gap-2">
-              <svg class="w-5 h-5 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-              </svg>
-              Processing...
-            </span>
-            <span v-else class="flex flex-col-1 items-center gap-2">
-              <component :is="RefreshCcw" class="h-5 w-5" />
-              <span>Transcript</span>
-            </span>
-          </span>
-        </button>
-        <transition name="fade">
-          <div v-if="success" class="mt-3 text-green-600 text-sm font-medium">Transcript updated!</div>
-        </transition>
-        <transition name="fade">
-          <div v-if="error" class="mt-3 text-red-600 text-sm font-medium">{{ error }}</div>
-        </transition>
-      </div>
+  <button
+    class="w-42 my-8 aspect-square rounded-lg border border-gray-300  bg-white  shadow hover:bg-gray-100  transition disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center"
+    @click="reTranscript"
+    :disabled="loading"
+    type="button"
+  >
+    <div v-if="loading" class="flex flex-col items-center justify-center gap-2 text-sm text-blue-600">
+      <svg class="w-10 h-10 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+      </svg>
+      <span>Processing</span>
+    </div>
+    <div v-else class="flex flex-col items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-200">
+      <component :is="RefreshCcw" class="h-8 w-8 text-gray-400" />
+      <span>Transcript</span>
+    </div>
+    </button>
+      <transition name="fade">
+        <div v-if="success" class="mt-3 text-green-600 text-sm font-medium">Transcript updated!</div>
+      </transition>
+      <transition name="fade">
+        <div v-if="error" class="mt-3 text-red-600 text-sm font-medium">{{ error }}</div>
+      </transition>
+    </div>
+
     </div>
   </div>
 </template>

@@ -83,22 +83,20 @@ class MeetingInfoController extends Controller
             $supabaseToken = env('SUPABASE_SERVICE_ROLE');
             $bucket = env('SUPABASE_BUCKET', 'media');
             
-            $uploadUrl = "{$supabaseUrl}/storage/v1/object/{$bucket}/{$filename}";
+            $uploadUrl = "{$supabaseUrl}/storage/v1/object/{$bucket}/{$filename}?upload=1";
             
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $supabaseToken,
                 'Content-Type' => $file->getMimeType(),
             ])->withBody(
-                fopen($file->getRealPath(), 'r'), // 👈 stream raw file
+                fopen($file->getRealPath(), 'r'),
                 $file->getMimeType()
             )->put($uploadUrl);
-
-            
 
             if ($response->failed()) {
                 return back()->withErrors(['video' => 'Upload to storage failed.'])->withInput();
             }
-
+            
             $publicUrl = "{$supabaseUrl}/storage/v1/object/public/{$bucket}/{$filename}";
             $updateData['media_paths'] = $publicUrl;
         }
@@ -131,20 +129,36 @@ class MeetingInfoController extends Controller
             return response()->json(['error' => 'No media file found.'], 404);
         }
 
-        $relativePath = $meetingInfo->media_paths;
-        $mediaUrl = env('SUPABASE_URL') . '/storage/v1/object/public' . Str::after($relativePath, '/storage');
-        
+        $mediaUrl = $meetingInfo->media_paths;
         $filename = basename(parse_url($mediaUrl, PHP_URL_PATH));
         $tempPath = $tempDir . '/' . $filename;
 
         try {
 
-            Http::timeout(60)->sink($tempPath)->get($mediaUrl);
+            $maxRetries = 3;
+            $attempt = 0;
+            $downloadSuccess = false;
 
-            if (!file_exists($tempPath)) {
-                return response()->json(['error' => 'Download failed.'], 500);
+            while ($attempt < $maxRetries && !$downloadSuccess) {
+                try {
+                    Http::timeout(60)->sink($tempPath)->get($mediaUrl);
+
+                    if (file_exists($tempPath) && filesize($tempPath) > 0) {
+                        $downloadSuccess = true;
+                    } else {
+                        $attempt++;
+                        sleep(1);
+                    }
+                } catch (\Exception $e) {
+                    $attempt++;
+                    sleep(1);
+                }
             }
 
+            if (!$downloadSuccess) {
+                return response()->json(['error' => 'Download failed after retries'], 500);
+            }
+            
             $client = new \GuzzleHttp\Client();
             $response = $client->request('POST', 'https://inwneon-project-voice-diarzation.hf.space/upload_video/', [
                 'multipart' => [
