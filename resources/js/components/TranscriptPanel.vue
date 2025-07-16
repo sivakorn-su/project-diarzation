@@ -63,8 +63,8 @@
         v-for="(item, index) in filteredTranscript"
         :key="index"
         :class="[
-          'rounded-xl border p-4 shadow flex items-center gap-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800',
-          mediaType === 'video' && Number(currentTime) >= Number(item.start) && Number(currentTime) <= Number(item.end) ? 'bg-sky-50' : ''
+          'rounded-xl border p-4 shadow flex items-center gap-3 cursor-pointer hover:bg-slate-50 ',
+          mediaType === 'video' && Number(currentTime) >= Number(item.start) && Number(currentTime) <= Number(item.end) ? 'border-l-4 border-transparent border-l-sky-500' : ''
         ]"
         @click="jumpToTime(item.start)"
       >
@@ -81,24 +81,49 @@
                 <input v-model="editItem.start" class="border rounded px-2 py-1 w-20" placeholder="Start" />
                 <input v-model="editItem.end" class="border rounded px-2 py-1 w-20" placeholder="End" />
               </div>
+              <textarea disabled v-model="editItem.text" class="break-words px-2 py-1 border border-green-200 p-1 my-2 text-sm rounded-lg inline-block text-green-700 bg-green-50 "></textarea>           
               <textarea v-model="editItem.text" class="border rounded px-2 py-1" placeholder="Text"></textarea>
               <div class="flex gap-2 mt-2">
-                <button @click.stop="saveEdit(index)" class="px-2 py-1 bg-blue-500 text-white rounded">Save</button>
-                <button @click.stop="cancelEdit" class="px-2 py-1 bg-gray-300 rounded">Cancel</button>
+                <button @click.stop="saveEdit(index)" class="px-2 py-1 bg-sky-500 text-white rounded">Save</button>
+                <button @click.stop="cancelEdit" class="px-2 py-1 bg-gray-300 rounded ">Cancel</button>
               </div>
             </div>
           </template>
           <template v-else>
-            <p class="truncate">
-              <strong>{{ item.speaker }}</strong> : {{ item.start }}s - {{ item.end }}s
-            </p>
-            <p class="break-words">{{ item.text }}</p>
+            <div class="flex items-start justify-between mb-2">
+        <p class="truncate">
+          <strong>{{ item.speaker }}</strong> : {{ item.start }}s - {{ item.end }}s
+        </p>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <span                  
+            v-if="item.probability"                 
+            :class="{                   
+              'bg-red-100 text-red-800 border-red-200': item.probability <= 0.25,                   
+              'bg-yellow-100 text-yellow-800 border-yellow-200': item.probability > 0.25 && item.probability <= 0.50,                   
+              'bg-green-100 text-green-800 border-green-200': item.probability > 0.50 && item.probability <= 0.75,                   
+              'bg-blue-100 text-blue-800 border-blue-200': item.probability > 0.75                 
+            }"                 
+            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border"               
+          >                 
+            {{ Math.round(item.probability * 100) }}%               
+          </span>
+          <div class="flex gap-1">
+            <button @click.stop="startEdit(index, item)" class="text-gray-400 hover:text-blue-600">
+              <component :is="Pencil" class="w-4 h-4" />
+            </button>           
+            <button @click.stop="deleteItem(index)" class="text-gray-400 hover:text-red-600">
+              <component :is="Trash" class="w-4 h-4" />
+            </button>         
+          </div>
+        </div>
+      </div>
+      <p class="break-words my-2">{{item.text}}</p>             
           </template>
         </div>
-        <div class="flex flex-row gap-2 ml-2">
+        <!-- <div class="flex flex-row gap-2 ml-2">
           <button @click.stop="startEdit(index, item)" class="text-gray-400 hover:text-blue-600"><component :is="Pencil" class="w-5 h-5" /></button>
           <button @click.stop="deleteItem(index)" class="text-gray-400 hover:text-red-600"><component :is="Trash" class="w-5 h-5" /></button>
-        </div>
+        </div> -->
       </div>
     </div>
     <div v-else>
