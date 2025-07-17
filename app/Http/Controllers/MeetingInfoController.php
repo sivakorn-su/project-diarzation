@@ -116,7 +116,7 @@ class MeetingInfoController extends Controller
 
     public function transcript(Meeting $meeting)
     {
-        set_time_limit(1800); // 300 seconds = 5 minutes, adjust as needed
+        set_time_limit(3000); // 300 seconds = 5 minutes, adjust as needed
 
         $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->first();
 

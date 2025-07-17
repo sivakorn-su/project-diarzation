@@ -96,16 +96,16 @@
         </p>
         <div class="flex items-center gap-2 flex-shrink-0">
           <span                  
-            v-if="item.probability"                 
+            v-if="item.avg_probability"                 
             :class="{                   
-              'bg-red-100 text-red-800 border-red-200': item.probability <= 0.25,                   
-              'bg-yellow-100 text-yellow-800 border-yellow-200': item.probability > 0.25 && item.probability <= 0.50,                   
-              'bg-green-100 text-green-800 border-green-200': item.probability > 0.50 && item.probability <= 0.75,                   
-              'bg-blue-100 text-blue-800 border-blue-200': item.probability > 0.75                 
+              'bg-red-100 text-red-800 border-red-200': item.avg_probability <= 0.25,                   
+              'bg-yellow-100 text-yellow-800 border-yellow-200': item.avg_probability > 0.25 && item.avg_probability <= 0.50,                   
+              'bg-green-100 text-green-800 border-green-200': item.avg_probability > 0.50 && item.avg_probability <= 0.75,                   
+              'bg-blue-100 text-blue-800 border-blue-200': item.avg_probability > 0.75                 
             }"                 
             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border"               
           >                 
-            {{ Math.round(item.probability * 100) }}%               
+            {{ Math.round(item.avg_probability * 100) }}%               
           </span>
           <div class="flex gap-1">
             <button @click.stop="startEdit(index, item)" class="text-gray-400 hover:text-blue-600">
@@ -208,6 +208,8 @@ const props = defineProps({
         speaker: string;
         filename: string;
         text: string;
+        avg_probability: number | string;
+        llm_corrected_text: string;
       }>;
       count_speaker: Array<{
         speaker: string;

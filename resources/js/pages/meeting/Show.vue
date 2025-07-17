@@ -35,6 +35,8 @@ const props = defineProps<{
                     speaker: string;
                     filename: string;
                     text: string;
+                    avg_probability: number | string;
+                    llm_corrected_text: string;
                 }[];
                 count_speaker: {
                     speaker: string;
