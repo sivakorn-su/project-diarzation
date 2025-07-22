@@ -81,7 +81,8 @@
                 <input v-model="editItem.start" class="border rounded px-2 py-1 w-20" placeholder="Start" />
                 <input v-model="editItem.end" class="border rounded px-2 py-1 w-20" placeholder="End" />
               </div>
-              <textarea disabled v-model="editItem.text" class="break-words px-2 py-1 border border-green-200 p-1 my-2 text-sm rounded-lg inline-block text-green-700 bg-green-50 "></textarea>           
+              <p class="font-semibold text-green-700">AI Suggested</p>
+              <textarea disabled  :value="editItem.llm_corrected_text || '-'" class="break-words px-2 py-1 border border-green-200 p-1 my-2 text-sm rounded-lg inline-block text-green-700 bg-green-50 "></textarea>           
               <textarea v-model="editItem.text" class="border rounded px-2 py-1" placeholder="Text"></textarea>
               <div class="flex gap-2 mt-2">
                 <button @click.stop="saveEdit(index)" class="px-2 py-1 bg-sky-500 text-white rounded">Save</button>
