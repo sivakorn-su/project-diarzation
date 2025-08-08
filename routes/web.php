@@ -2,8 +2,11 @@
 
 use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\MeetingInfoController;
+use App\Http\Controllers\TranscriptController;
+use App\Http\Controllers\TranscriptSegmentsController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Jobs\TestLogJob;
 
 Route::get('/', function () {
     return Inertia::render('auth/Login');
@@ -23,13 +26,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/meetings/{meeting}/infos', [MeetingInfoController::class, 'update'])->name('description.update');
     Route::post('/meetings/{meeting}/transcript', [MeetingInfoController::class, 'transcript'])->name('transcript.update');
     Route::put('/meetings/{meeting}/transcript/update', [MeetingInfoController::class, 'transcriptUpdate'])->name('transcript.edit');
-
     // Export transcript as DOCX
     Route::get('/meetings/{meeting}/transcript/export-docx', [MeetingInfoController::class, 'transcriptExport'])->name('transcript.exportDocx');
 
     Route::get('/meetings/{meeting}/edit', [MeetingController::class, 'edit'])->name('meetings.edit');
     Route::put('/meetings/{meeting}', [MeetingController::class, 'update'])->name('meetings.update');
 
+        // Transcript CRUD
+    Route::resource('transcripts', TranscriptController::class);
+
+    // เพิ่ม endpoint สำหรับสั่งประมวลผล/ถอดเสียง
+    Route::post('/transcripts/{transcript}/transcribe', [TranscriptController::class, 'transcribe'])
+        ->name('transcripts.transcribe');
+
+    // Segment CRUD (ภายใน transcript)
+    Route::post('/transcripts/{transcript}/segments', [TranscriptSegmentController::class, 'store'])
+        ->name('segments.store');
+
+    Route::put('/transcripts/{transcript}/segments/{segment}', [TranscriptSegmentController::class, 'update'])
+        ->name('segments.update');
+
+    Route::delete('/transcripts/{transcript}/segments/{segment}', [TranscriptSegmentController::class, 'destroy'])
+    ->name('segments.destroy');
+    
     // Upload media page for meeting info
     Route::get('/meeting/{meeting}/upload-media', function ($meeting) {
         return Inertia::render('meeting/UploadMedia', [
@@ -52,7 +71,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'ini_scanned_files' => php_ini_scanned_files(),
         ];
     });
-    
+    Route::get('/queue-test', function () {
+        TestLogJob::dispatch();
+        return 'Job dispatched!';
+    });
 });
 
 require __DIR__.'/settings.php';

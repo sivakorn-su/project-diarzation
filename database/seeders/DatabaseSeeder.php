@@ -26,5 +26,8 @@ class DatabaseSeeder extends Seeder
             'password'=>'password'
         ]);
         $this->call(MeetingSeeder::class);
+        $this->call([
+            TranscriptSeeder::class,
+        ]);
     }
 }
