@@ -33,21 +33,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/meetings/{meeting}', [MeetingController::class, 'update'])->name('meetings.update');
 
         // Transcript CRUD
-    Route::resource('transcripts', TranscriptController::class);
+    // Route::resource('transcripts', TranscriptController::class);
 
-    // เพิ่ม endpoint สำหรับสั่งประมวลผล/ถอดเสียง
-    Route::post('/transcripts/{transcript}/transcribe', [TranscriptController::class, 'transcribe'])
-        ->name('transcripts.transcribe');
+    // // เพิ่ม endpoint สำหรับสั่งประมวลผล/ถอดเสียง
+    // Route::post('/transcripts/{transcript}/transcribe', [TranscriptController::class, 'transcribe'])
+    //     ->name('transcripts.transcribe');
 
-    // Segment CRUD (ภายใน transcript)
-    Route::post('/transcripts/{transcript}/segments', [TranscriptSegmentController::class, 'store'])
-        ->name('segments.store');
+    // // Segment CRUD (ภายใน transcript)
+    // Route::post('/transcripts/{transcript}/segments', [TranscriptSegmentController::class, 'store'])
+    //     ->name('segments.store');
 
-    Route::put('/transcripts/{transcript}/segments/{segment}', [TranscriptSegmentController::class, 'update'])
-        ->name('segments.update');
+    // Route::put('/transcripts/{transcript}/segments/{segment}', [TranscriptSegmentController::class, 'update'])
+    //     ->name('segments.update');
 
-    Route::delete('/transcripts/{transcript}/segments/{segment}', [TranscriptSegmentController::class, 'destroy'])
-    ->name('segments.destroy');
+    // Route::delete('/transcripts/{transcript}/segments/{segment}', [TranscriptSegmentController::class, 'destroy'])
+    // ->name('segments.destroy');
     
     // Upload media page for meeting info
     Route::get('/meeting/{meeting}/upload-media', function ($meeting) {
