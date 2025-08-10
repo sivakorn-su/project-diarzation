@@ -1,288 +1,476 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
+import { Head, useForm } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { 
+  Lightbulb, ListOrderedIcon, ListFilterIcon, FileUpIcon, Loader, 
+  PlayCircle, UserRound, Mail, Calendar, Clock, Film, CheckCircle2, XCircle,
+  UploadCloud, X, AlertCircle, Music,
+  Users
+} from 'lucide-vue-next';
 
-import { Head, useForm, } from '@inertiajs/vue3';
-import { ref } from 'vue';
-import { Lightbulb, ListOrderedIcon,ListFilterIcon,FileUpIcon,Loader } from 'lucide-vue-next';
-import TranscriptPanel from '@/components/TranscriptPanel.vue'
-import MeetingStats from '@/components/MeetingStats.vue'
-import SpeakerCountList from '@/components/SpeakerCountList.vue'
-import MeetingSummaries from '@/components/MeetingSummaries.vue'
-
+import TranscriptPanel from '@/components/TranscriptPanel.vue';
+import MeetingStats from '@/components/MeetingStats.vue';
+import SpeakerCountList from '@/components/SpeakerCountList.vue';
+import MeetingSummaries from '@/components/MeetingSummaries.vue';
 
 const props = defineProps<{
-    meetings: {
-        id: string;
-        title: string;
-        start_date: string;
-        end_date: string;
-        level: string;
-        user?: {
-            id: number;
-            name: string;
-            email: string;
-        };
-        info?: {
-            description: string;
-            media_paths: string;
-            audio_path: string;
-            audio_length: number,
-            transcript_json: {
-                data: {
-                    start: number | string;
-                    end: number | string;
-                    speaker: string;
-                    filename: string;
-                    text: string;
-                    avg_probability: number | string;
-                    llm_corrected_text: string;
-                }[];
-                count_speaker: {
-                    speaker: string;
-                    count: number | string;
-                }[];
-                summaries:string[];
-                video_path: string;
-                num_speakers: number;
-                speaker_array: string[];
-                total_sentence: number;
-            };
-        };
+  meetings: {
+    id: string;
+    title: string;
+    start_date: string;
+    end_date: string;
+    level: string;
+    user?: { id: number; name: string; email: string; };
+    info?: {
+      description: string;
+      media_paths: string;
+      audio_path: string;
+      audio_length: number;
+      transcript_json: {
+        data: { start: number|string; end: number|string; speaker: string; filename: string; text: string; avg_probability: number|string; llm_corrected_text: string; }[];
+        count_speaker: { speaker: string; count: number|string }[];
+        summaries: string[]|string;
+        video_path: string;
+        num_speakers: number;
+        speaker_array: string[];
+        total_sentence: number;
+      };
+      status?: 'pending'|'processing'|'done'|'failed';
     };
-    authUser: any;
+  };
+  authUser: any;
 }>();
 
 const meeting = props.meetings;
+
 const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Meeting',
-        href: '/meetings',
-    },
-    {
-        title: 'Meeting: ' + meeting.title,
-        href: '/meeting/' + meeting.id,
-    },
+  { title: 'Meeting', href: '/meetings' },
+  { title: `Meeting: ${meeting.title}`, href: `/meeting/${meeting.id}` },
 ];
 
+/* ========= Upload form state ========= */
 const form = useForm({
-    video: null as File | null,
-    transcript: null as any,
-    url: 'https://inwneon-project-voice-diarzation.hf.space',
-    statusMessage:'',
-    statusType:'',
+  video: null as File|null,
+  transcript: null as any,
+  url: 'https://inwneon-project-voice-diarzation.hf.space',
+  statusMessage: '',
+  statusType: '',
 });
 
-const handleFileChange = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    const file = target.files?.[0] ?? null;
-    if (file) {
-        if (file.size > 10 * 1024 * 1024) { // 10MB in bytes
-            alert('File size exceeds 10MB limit. Please select a smaller file.');
-            form.video = null;
-            (event.target as HTMLInputElement).value = '';
-        } else {
-            form.video = file;
-        }
-    } else {
-        form.video = null;
-    }
+// drag & drop helpers
+const supportedFormats = ['MP3', 'WAV', 'FLAC', 'MP4', 'MOV', 'AVI'];
+const fileInput = ref<HTMLInputElement | null>(null);
+const isDragOver = ref(false);
+
+const openFileDialog = () => fileInput.value?.click();
+
+const handleFileChange = (e: Event) => {
+  const target = e.target as HTMLInputElement;
+  const file = target.files?.[0] ?? null;
+  if (!file) { form.video = null; return; }
+  form.video = file;
 };
+
+const handleDragOver = (e: DragEvent) => {
+  e.preventDefault();
+  isDragOver.value = true;
+};
+const handleDragLeave = () => { isDragOver.value = false; };
+const handleDrop = (e: DragEvent) => {
+  e.preventDefault();
+  isDragOver.value = false;
+  const file = e.dataTransfer?.files?.[0];
+  if (file) form.video = file;
+};
+const removeFile = () => {
+  form.video = null;
+  if (fileInput.value) fileInput.value.value = '';
+};
+const getFileIcon = (file: File) => {
+  if (file.type.startsWith('audio/')) return Music;
+  if (file.type.startsWith('video/')) return Film;
+  return FileUpIcon;
+};
+const getFileSize = (size: number) => {
+  const kb = size / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  return `${(kb / 1024).toFixed(1)} MB`;
+};
+
 const submitComment = async () => {
-    form.processing = true;
-    form.statusMessage = '';
-    form.statusType = '';
-    console.log(form.video)
-    if (!form.video) {
-        alert('Please select a video file before uploading.');
-        form.processing = false;
-        return;
-    }if(!form.url){
-        alert('Please enter a url before uploading.');
-        form.processing = false;
-        return;
-    }
+  form.processing = true;
+  form.statusMessage = '';
+  form.statusType = '';
+  if (!form.video) { alert('เลือกไฟล์ก่อนนะ'); form.processing = false; return; }
+  if (!form.url)   { alert('กรอก URL ก่อน');     form.processing = false; return; }
 
-    // let baseUrl = form.url.trim();
-    // if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
-    // try {
-    //     const response = await fetch(baseUrl, { method: 'GET' })
-    //     if (response.ok) {
-    //         form.statusMessage = 'Connected to server'
-    //         form.statusType = 'success'
-    //     } else {
-    //         form.statusMessage = `Server responded: ${response.status}`
-    //         form.statusType = 'error'
-    //         return
-    //     }
-    // } catch (err) {
-    //     form.statusMessage = `Connection failed: ${err.message}`
-    //     form.statusType = 'error'
-    //     return
-    // }
-
-    const formData = new FormData();
-    formData.append('file', form.video);
-    // formData.append('transcript[]', 'test'); 
-    // const uploadUrl = `${baseUrl}/upload_video/`
-
-    try {
-        // const response = await fetch(uploadUrl, {
-        //     method: 'POST',
-        //     body: formData,
-        // });
-
-        // if (!response.ok) {
-        //     throw new Error(`Upload failed: ${response.statusText}`);
-        // }
-
-        // const result = await response.json();
-
-        // if (!Array.isArray(result.data) || result.data.length === 0) {
-        //     throw new Error('No transcript data received.');
-        // }
-        
-        // form.transcript = result;
-        // Inertia.post(`/meetings/${meeting.id}/infos`, formData, {
-        //     onSuccess: () => {
-        //         form.reset();
-        //     },
-        // });
-
-        form.post(`/meetings/${meeting.id}/infos`, {
-            forceFormData: true,
-            onSuccess: () => {
-                form.reset();
-            },
-            onError: () => {
-                alert('Failed to upload video. Please try again.');
-            },
-        });
-    } catch (error) {
-        console.error('Upload error:', error);
-        alert('Failed to upload video. Please try again.');
-    }finally {
-        form.processing = false;
-    }
+  try {
+    await form.post(`/meetings/${meeting.id}/infos`, {
+      forceFormData: true,
+      onSuccess: () => form.reset(),
+      onError:   () => alert('อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง'),
+    });
+  } catch (e) {
+    console.error(e);
+    alert('อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง');
+  } finally {
+    form.processing = false;
+  }
 };
-const transcript = (props.meetings.info?.transcript_json ?? null) as {
-    data: { start: number | string; end: number | string; speaker: string; filename: string; text: string }[];
-    count_speaker: { speaker: string; count: number | string }[];
-    summaries: string | string[];
-    video_path: string;
-    num_speakers: number;
-    speaker_array: string[];
-    total_sentence: number;
-} | null;
 
-const speakers = Array.isArray(transcript?.speaker_array)
-    ? transcript!.speaker_array
-    : [];
-
+/* ========= View state ========= */
+const transcript = (meeting.info?.transcript_json ?? null) as any;
+const speakers = Array.isArray(transcript?.speaker_array) ? transcript!.speaker_array : [];
 const selectedSpeaker = ref('');
-
 const showFullView = ref(true);
+
+const hasMedia = computed(() => !!meeting.info?.media_paths);
+const hasTranscript = computed(() => {
+  const data = meeting.info?.transcript_json?.data;
+  return Array.isArray(data) && data.length > 0;
+});
+
+const statusBadge = computed(() => {
+  const s = meeting.info?.status;
+  if (!s) return { text: '—', cls: 'bg-gray-100 text-gray-600' };
+  const map: Record<string, string> = {
+    pending: 'bg-slate-100 text-slate-700',
+    processing: 'bg-amber-100 text-amber-700',
+    done: 'bg-emerald-100 text-emerald-700',
+    failed: 'bg-rose-100 text-rose-700',
+  };
+  return { text: s, cls: map[s] ?? 'bg-gray-100 text-gray-600' };
+});
+
+/* ========= Quick Stats (NEW) ========= */
+const tjson = computed(() => meeting.info?.transcript_json ?? null);
+
+const segs = computed(() => {
+  const arr = tjson.value?.data;
+  return Array.isArray(arr) ? arr : [];
+});
+
+const totalSegments = computed(() => segs.value.length);
+
+const countList = computed(() => {
+  if (Array.isArray(tjson.value?.count_speaker) && tjson.value!.count_speaker.length) {
+    return tjson.value!.count_speaker.map((cs: any) => ({
+      speaker: String(cs.speaker),
+      count: Number(cs.count) || 0,
+    }));
+  }
+  const map = new Map<string, number>();
+  for (const s of segs.value) {
+    map.set(s.speaker, (map.get(s.speaker) ?? 0) + 1);
+  }
+  return Array.from(map.entries()).map(([speaker, count]) => ({ speaker, count }));
+});
+
+const totalSpeakers = computed(() => {
+  if (typeof tjson.value?.num_speakers === 'number') return tjson.value!.num_speakers;
+  return new Set(segs.value.map((s: any) => s.speaker)).size;
+});
+
+const mostActive = computed(() => {
+  if (!countList.value.length) return { speaker: '—', count: 0 };
+  return countList.value.reduce((a, b) => (b.count > a.count ? b : a));
+});
+
+const distribution = computed(() => {
+  const total = totalSegments.value || 1;
+  return countList.value
+    .map(c => ({
+      speaker: c.speaker,
+      count: c.count,
+      percent: Math.round((c.count / total) * 100),
+    }))
+    .sort((a, b) => b.count - a.count);
+});
 </script>
 
 <template>
-    <Head title="Meeting" />
-    <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-col gap-6 rounded-xl bg-white p-6 dark:bg-gray-950">
-            <div>
-               
-                <h1 class="text-3xl font-bold text-blue-600 dark:text-white">Meeting: {{ meeting.title }}</h1>
-                <p class="text-sm text-gray-500 dark:text-gray-400 my-4">Meeting By: {{ meeting.user?.name }} — Email: {{ meeting.user?.email }}</p>
-                <div class="text-gray-600 ">
-                    <div class="font-semibold mb-1">Description</div>
-                    <p>{{ meeting.info?.description ? meeting.info?.description: '-'}}</p>
-                </div>
+  <Head title="Meeting" />
+  <AppLayout :breadcrumbs="breadcrumbs">
+    <div class="flex flex-col gap-6 rounded-xl bg-white p-6 dark:bg-gray-950">
+
+      <!-- Header card -->
+      <div class="rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2 text-xs">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300">
+                <Calendar class="h-4 w-4" /> {{ new Date(meeting.start_date).toLocaleDateString('th-TH') }}
+              </span>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300">
+                <Clock class="h-4 w-4" /> {{ new Date(meeting.start_date).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',hour12:false}) }}
+              </span>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300">
+                <Film class="h-4 w-4" /> {{ hasMedia ? 'มีไฟล์แนบ' : 'ไม่มีไฟล์' }}
+              </span>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full" :class="statusBadge.cls">
+                <component :is="(meeting.info?.status==='done')?CheckCircle2:(meeting.info?.status==='failed')?XCircle:Loader" class="h-4 w-4"/>
+                {{ statusBadge.text }}
+              </span>
             </div>
-
-            <form
-                v-if="!meeting.info?.media_paths"
-                @submit.prevent="submitComment"
-                class="grid gap-4 md:grid-cols-3"
-            >
-                <div class="col-span-full flex flex-col items-start gap-2">
-
-                    <label class="block mb-2 font-semibold">Select Video File</label>
-                    <!-- <div
-                        :class="['text-sm my-2', form.statusType === 'success' ? 'text-green-600' : 'text-red-600']"
-                    >
-                        {{ form.statusMessage ? form.statusMessage : 'Not Connecting Server Please Upload File.'}}
-                    </div> -->
-                    <input
-                        type="file"
-                        name="file"
-                        @change="handleFileChange"
-                        class="mt-2 w-full rounded-md border px-4 py-2 focus:ring-1 focus:ring-blue-600 focus:outline-none"
-                    />
-
-                    <button
-                        type="submit"
-                        :disabled="form.processing"
-                        :class="[
-                              'flex items-center gap-2 rounded-md px-4 py-2 text-white transition-colors duration-300 my-4',
-                              form.processing ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-                            ]">
-                        {{ form.processing ? 'Loading...' : 'Upload' }}
-                        <component
-                            :is="form.processing ? Loader : FileUpIcon"
-                            class="h-5 w-5"
-                        />
-                    </button>
-
-                    <p v-if="form.errors.video" class="text-sm text-red-600">
-                        {{ form.errors.video }}
-                    </p>
-                </div>
-            </form>
-            
-            <div v-if="meeting.info?.media_paths" class="relative flex min-h-[400px] flex-col gap-4 rounded-xl border border-gray-200 p-6 dark:border-gray-700 ">
-                <button
-                    @click="showFullView = !showFullView"
-                    class="absolute right-4 top-4 inline-flex items-center gap-2 rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-blue-600 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 transition"
-                >
-                    {{ showFullView ? 'Transcript': 'Summaries'}}
-                    
-                    <component
-                        :is="showFullView ? ListOrderedIcon : Lightbulb"
-                        class="h-5 w-5"
-                    />
-                </button>
-                
-                <h2 class="text-lg font-semibold text-blue-600 dark:text-white">{{ showFullView ? " Meeting Transcript :" : "Meeting Summary:"}}</h2>
-
-                <div v-if="meetings.info?.media_paths && showFullView" class="mt-6">
-                
-                    <div class="flex flex-col sm:flex-row gap-6 w-full h-[750px]">
-                        <TranscriptPanel
-                            :meeting-id="meeting.id"
-                            :speakers="speakers"
-                            v-model:selectedSpeaker="selectedSpeaker"
-                            :transcriptData="meeting.info.transcript_json"
-                            :ListFilterIcon="ListFilterIcon"
-                            :videoPath="meeting.info?.media_paths"
-                            :transcript_json="meeting.info.transcript_json"
-                        />
-                    </div>
-                </div>
-
-                <div v-else-if="meetings.info?.transcript_json && !showFullView" class="mt-6 space-y-3 text-base leading-relaxed text-gray-800 dark:text-gray-200  rounded-md p-4">
-                    <div class="flex flex-wrap justify-between gap-4 mb-4">
-                        <MeetingStats
-                            :numSpeakers="meeting.info?.transcript_json.num_speakers"
-                            :totalSentence="meeting.info?.transcript_json.total_sentence"
-                        />
-                        <SpeakerCountList
-                            :countSpeaker="meeting.info?.transcript_json.count_speaker ?? []"
-                        />
-                    </div>
-                    <MeetingSummaries
-                        :summaries="meetings.info?.transcript_json?.summaries"
-                    />
-                </div>
-            </div>
+            <h1 class="text-2xl md:text-3xl font-bold text-blue-600 dark:text-white">
+              {{ meeting.title }}
+            </h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+              <UserRound class="inline h-4 w-4" /> {{ meeting.user?.name ?? '-' }}
+              • <Mail class="inline h-4 w-4" /> {{ meeting.user?.email ?? '-' }}
+            </p>
+          </div>
         </div>
-    </AppLayout>
+
+        <div class="mt-4 text-gray-700 dark:text-gray-300">
+          <div class="font-semibold mb-1">Description</div>
+          <p class="leading-relaxed">{{ meeting.info?.description || '-' }}</p>
+        </div>
+      </div>
+
+      <!-- Quick Stats (ระหว่าง Header กับ Transcript) -->
+      <div 
+        v-if="hasTranscript" 
+        class="rounded-xl border border-gray-200 dark:border-gray-800 p-5 bg-white dark:bg-gray-950"
+      >
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Quick Stats</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400">ภาพรวมสรุปจาก transcript ล่าสุด</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <!-- Most Active -->
+          <div class="flex items-center gap-4 p-4 rounded-xl bg-sky-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-800 flex items-center justify-center">
+                <UserRound class="h-5 w-5 text-blue-600 dark:text-blue-300" />
+                </div>
+                <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Most Active</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                    {{ meeting.info?.transcript_json?.count_speaker?.[0]?.speaker ?? '-' }}
+                </p>
+                </div>
+            </div>
+
+          <!-- Total Speakers -->
+          <div class="flex items-center gap-4 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-800 flex items-center justify-center">
+                <Users class="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+                </div>
+                <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Total Speakers</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                    {{ meeting.info?.transcript_json?.num_speakers ?? 0 }}
+                </p>
+                </div>
+           </div>
+
+          <!-- Total Segments -->
+          <div class="flex items-center gap-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+            <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-800 flex items-center justify-center">
+            <ListOrderedIcon class="h-5 w-5 text-amber-600 dark:text-amber-300" />
+            </div>
+            <div>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Total Segments</p>
+            <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ meeting.info?.transcript_json?.data?.length ?? 0 }}
+            </p>
+            </div>
+           </div>
+
+          <!-- Speaker Distribution -->
+          <div class="rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+            <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">Speaker Distribution</div>
+            <div class="space-y-2 max-h-36 overflow-auto pr-1">
+              <div v-for="d in distribution" :key="d.speaker">
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="font-medium text-gray-700 dark:text-gray-200 truncate">{{ d.speaker }}</span>
+                  <span class="text-gray-500 dark:text-gray-400">{{ d.percent }}%</span>
+                </div>
+                <div class="w-full h-2 rounded bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                  <div
+                    class="h-2 rounded bg-sky-500 dark:bg-sky-600 transition-all"
+                    :style="{ width: `${d.percent}%` }"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload card (Drag & Drop) -->
+      <form v-if="!hasMedia" @submit.prevent="submitComment" class="space-y-6">
+        <!-- Media File -->
+        <div>
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/20 rounded-lg flex items-center justify-center">
+              <UploadCloud class="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Media File</h3>
+            <span class="text-red-500 text-sm">*</span>
+          </div>
+
+          <!-- File Drop Zone -->
+          <div 
+            @dragover="handleDragOver"
+            @dragleave="handleDragLeave"
+            @drop="handleDrop"
+            @click="openFileDialog"
+            :class="[
+              'relative border-2 border-dashed rounded-2xl p-8 cursor-pointer transition-all duration-200',
+              isDragOver 
+                ? 'border-sky-400 bg-sky-50 dark:bg-sky-900/20' 
+                : form.video 
+                  ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-900/20'
+                  : 'border-gray-300 dark:border-gray-600 hover:border-sky-300 hover:bg-sky-50/50 dark:hover:bg-sky-900/10',
+              form.errors.video && 'border-red-300 bg-red-50 dark:bg-red-900/20'
+            ]"
+          >
+            <input
+              type="file"
+              accept="audio/*,video/*"
+              ref="fileInput"
+              @change="handleFileChange"
+              class="hidden"
+            />
+            
+            <!-- Upload State -->
+            <div v-if="!form.video" class="text-center">
+              <div class="w-16 h-16 bg-sky-100 dark:bg-sky-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <UploadCloud class="h-8 w-8 text-sky-500 dark:text-sky-400" />
+              </div>
+              <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Drop your file here or click to browse
+              </h4>
+              <p class="text-gray-500 dark:text-gray-400 mb-4">
+                Upload audio or video files for transcription
+              </p>
+              
+              <!-- Supported Formats -->
+              <div class="flex flex-wrap gap-2 justify-center">
+                <span v-for="format in supportedFormats" :key="format" 
+                      class="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded-lg">
+                  {{ format }}
+                </span>
+              </div>
+            </div>
+
+            <!-- File Preview -->
+            <div v-else class="text-center">
+              <div class="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <component :is="getFileIcon(form.video)" class="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              
+              <div class="mb-4">
+                <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                  {{ form.video.name }}
+                </h4>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ getFileSize(form.video.size) }} • {{ form.video.type || 'Unknown format' }}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                @click.stop="removeFile"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-100 dark:bg-red-900/20 hover:bg-red-200 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-all duration-200"
+              >
+                <X class="h-4 w-4" />
+                Remove File
+              </button>
+            </div>
+          </div>
+
+          <div v-if="form.errors.video" class="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm mt-3">
+            <AlertCircle class="h-4 w-4" />
+            {{ form.errors.video }}
+          </div>
+        </div>
+
+        <!-- Processing Info -->
+        <div class="bg-sky-50 dark:bg-sky-900/10 rounded-xl p-6 border border-sky-200 dark:border-sky-800">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 bg-sky-200 dark:bg-sky-800 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+              <AlertCircle class="h-4 w-4 text-sky-600 dark:text-sky-400" />
+            </div>
+            <div>
+              <h4 class="font-semibold text-sky-900 dark:text-sky-100 mb-2">Processing Information</h4>
+              <ul class="space-y-1 text-sm text-sky-700 dark:text-sky-300">
+                <li>• Large files may take several minutes to process</li>
+                <li>• You'll be notified when transcription is complete</li>
+                <li>• Supported formats: Audio (MP3, WAV, FLAC) and Video (MP4, MOV, AVI)</li>
+                <li>• Maximum file size: 500MB</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="pt-2">
+          <button
+            type="submit"
+            :disabled="form.processing"
+            :class="['inline-flex items-center gap-2 rounded-md px-4 py-2 text-white transition',
+                     form.processing ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700']">
+            <span>{{ form.processing ? 'กำลังอัปโหลด…' : 'อัปโหลด' }}</span>
+            <component :is="form.processing ? Loader : FileUpIcon" class="h-5 w-5" />
+          </button>
+        </div>
+      </form>
+
+      <!-- Content card -->
+      <div v-if="hasMedia" class="relative rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+        <!-- Segmented toggle -->
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold text-blue-600 dark:text-white">
+            {{ showFullView ? 'Meeting Transcript' : 'Meeting Summary' }}
+          </h2>
+
+        <div class="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <button type="button"
+                    @click="showFullView = true"
+                    :class="['px-3 py-1.5 text-sm transition',
+                             showFullView ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800']">
+              <ListOrderedIcon class="inline h-4 w-4 mr-1" /> Transcript
+            </button>
+            <button type="button"
+                    @click="showFullView = false"
+                    :class="['px-3 py-1.5 text-sm transition border-l border-gray-200 dark:border-gray-700',
+                             !showFullView ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800']">
+              <Lightbulb class="inline h-4 w-4 mr-1" /> Summaries
+            </button>
+          </div>
+        </div>
+
+        <!-- Transcript view -->
+        <div v-if="showFullView" class="mt-6">
+          <div v-if="hasTranscript" class="flex flex-col sm:flex-row gap-6 w-full min-h-[600px]">
+            <TranscriptPanel
+              :meeting-id="meeting.id"
+              :speakers="speakers"
+              v-model:selectedSpeaker="selectedSpeaker"
+              :transcriptData="meeting.info!.transcript_json"
+              :ListFilterIcon="ListFilterIcon"
+              :videoPath="meeting.info?.media_paths"
+              :transcript_json="meeting.info!.transcript_json"
+            />
+          </div>
+          <div v-else class="mt-10 flex flex-col items-center justify-center text-gray-500">
+            <PlayCircle class="h-10 w-10 mb-2" />
+            <p class="text-sm">ยังไม่มี transcript — กดประมวลผลจากหลังบ้าน หรืออัปโหลดใหม่</p>
+          </div>
+        </div>
+
+        <!-- Summaries view -->
+        <div v-else class="mt-6 space-y-4">
+          <div class="rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+            <MeetingSummaries :summaries="meeting.info?.transcript_json?.summaries" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </AppLayout>
 </template>

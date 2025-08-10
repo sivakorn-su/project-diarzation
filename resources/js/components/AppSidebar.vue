@@ -20,11 +20,6 @@ const mainNavItems: NavItem[] = [
         icon: CalendarDays,
     },
     {
-        title: 'Transcripts',
-        href: '/transcripts',
-        icon: FileTextIcon,
-    },
-    {
         title: 'Health',
         href: '/status',
         icon: BriefcaseMedicalIcon,

@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;
 use Illuminate\Support\Facades\Http;
+use App\Jobs\ProcessMeetingTranscript;
 
 class MeetingInfoController extends Controller
 {
@@ -116,7 +117,6 @@ class MeetingInfoController extends Controller
 
     public function transcript(Meeting $meeting)
     {
-        set_time_limit(3000); // 300 seconds = 5 minutes, adjust as needed
 
         $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->first();
 
@@ -129,76 +129,96 @@ class MeetingInfoController extends Controller
             return response()->json(['error' => 'No media file found.'], 404);
         }
 
-        $mediaUrl = $meetingInfo->media_paths;
-        $filename = basename(parse_url($mediaUrl, PHP_URL_PATH));
-        $tempPath = $tempDir . '/' . $filename;
-
-        try {
-
-            $maxRetries = 3;
-            $attempt = 0;
-            $downloadSuccess = false;
-
-            while ($attempt < $maxRetries && !$downloadSuccess) {
-                try {
-                    Http::timeout(60)->sink($tempPath)->get($mediaUrl);
-
-                    if (file_exists($tempPath) && filesize($tempPath) > 0) {
-                        $downloadSuccess = true;
-                    } else {
-                        $attempt++;
-                        sleep(1);
-                    }
-                } catch (\Exception $e) {
-                    $attempt++;
-                    sleep(1);
-                }
-            }
-
-            if (!$downloadSuccess) {
-                return response()->json(['error' => 'Download failed after retries'], 500);
-            }
-            
-            $client = new \GuzzleHttp\Client();
-            $response = $client->request('POST', 'https://inwneon-project-voice-diarzation.hf.space/upload_video/', [
-                'multipart' => [
-                    [
-                        'name'     => 'file',
-                        'contents' => fopen($tempPath, 'r'),
-                        'filename' => $filename,
-                    ],
-                ],
-            ]);
-
-            $result = json_decode($response->getBody(), true);
-
-            if (!isset($result['data']) || !is_array($result['data']) || count($result['data']) === 0) {
-                return response()->json(['error' => 'No transcript data received.'], 500);
-            }
-
-            $meetingInfo->update([
-                'transcript_json' => $result,
-            ]);
-
-            unlink($tempPath);
-
-            return Inertia::location(url()->previous());
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Upload failed: ' . $e->getMessage()], 500);
-        }
+        $meetingInfo->update(['status' => 'processing']);
+        ProcessMeetingTranscript::dispatch($meetingInfo->id)->onQueue('default');
+       
+        return Inertia::location(url()->previous());
     }
 
     public function transcriptUpdate(Request $request, Meeting $meeting)
     {
-        $data = $request->validate([
-            'transcript_json' => 'required|json',
-        ]);
-        
-        $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->first();
-        $meetingInfo->update($data);
+            // รับ JSON มาเป็นสตริง
+            $validated = $request->validate([
+                'transcript_json' => 'required|json',
+            ]);
 
-        return Inertia::location(url()->previous());
+            // แปลงเป็นอาเรย์
+            $incoming = json_decode($validated['transcript_json'], true);
+            if (!is_array($incoming)) {
+                return $request->wantsJson()
+                    ? response()->json(['error' => 'Invalid transcript_json'], 422)
+                    : back()->withErrors(['error' => 'Invalid transcript_json']);
+            }
+
+            // หา/สร้าง record
+            $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->firstOrFail();
+
+            // ของเดิม (ต้อง set casts ในโมเดล: 'transcript_json' => 'array')
+            $current = $meetingInfo->transcript_json ?? [];
+
+            // merge แบบ preserve ฟิลด์เดิม (เช่น media/info อื่นๆ)
+            $merged = array_merge($current, $incoming);
+
+            // ถ้ามี data ใหม่ให้ทับ, ถ้าไม่มีให้กัน null
+            if (isset($incoming['data']) && is_array($incoming['data'])) {
+                $merged['data'] = $incoming['data'];
+            } else {
+                $merged['data'] = $merged['data'] ?? [];
+            }
+
+            // คำนวณสถิติใหม่จาก data ปัจจุบัน
+            $stats = (function (array $list) {
+                $total = count($list);
+                $counts = [];
+                foreach ($list as $seg) {
+                    $sp = $seg['speaker'] ?? 'Unknown';
+                    $counts[$sp] = ($counts[$sp] ?? 0) + 1;
+                }
+                ksort($counts);
+                return [
+                    'total_sentence' => $total,
+                    'count_speaker'  => collect($counts)->map(fn($c,$s)=>['speaker'=>$s,'count'=>$c])->values()->all(),
+                    'num_speakers'   => count($counts),
+                    'speaker_array'  => array_values(array_keys($counts)),
+                ];
+            })($merged['data']);
+
+            // อัปเดตค่าที่ต้องมีเสมอ
+            $merged['total_sentence'] = $stats['total_sentence'];
+            $merged['count_speaker']  = $stats['count_speaker'];
+            $merged['num_speakers']   = $stats['num_speakers'];
+            $merged['speaker_array']  = $stats['speaker_array'];
+
+            // กันเผลอลบทิ้ง ถ้า client ไม่ส่งมา
+            foreach (['audio_path','video_path','audio_length'] as $k) {
+                if (!array_key_exists($k, $merged) && array_key_exists($k, $current)) {
+                    $merged[$k] = $current[$k];
+                }
+            }
+
+            // บันทึก (โมเดลควรมี casts: transcript_json => 'array')
+            $meetingInfo->update([
+                'transcript_json' => $merged,
+            ]);
+
+            // ถ้าขอเป็น JSON ส่งสถิติกลับให้ FE ใช้ต่อได้เลย
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'num_speakers'   => $merged['num_speakers'],
+                    'count_speaker'  => $merged['count_speaker'],
+                    'total_sentence' => $merged['total_sentence'],
+                    'transcript_json'=> $merged,
+                ]);
+            }
+
+            // Inertia ฟลัชค่ากลับไป (อ่านได้จาก props.flash ใน FE)
+            return back()->with([
+                'num_speakers'   => $merged['num_speakers'],
+                'count_speaker'  => $merged['count_speaker'],
+                'total_sentence' => $merged['total_sentence'],
+            ]);
     }
+
 
     public function transcriptExport(Meeting $meeting)
     {
