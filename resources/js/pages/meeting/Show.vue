@@ -6,9 +6,9 @@ import { ref, computed } from 'vue';
 import { 
   Lightbulb, ListOrderedIcon, ListFilterIcon, FileUpIcon, Loader, 
   PlayCircle, UserRound, Mail, Calendar, Clock, Film, CheckCircle2, XCircle,
-  UploadCloud, X, AlertCircle, Music,
-  Users
+  UploadCloud, X, AlertCircle, Music, Users, PieChart
 } from 'lucide-vue-next';
+import Modal from '@/components/Modal.vue';
 
 import TranscriptPanel from '@/components/TranscriptPanel.vue';
 import MeetingStats from '@/components/MeetingStats.vue';
@@ -73,39 +73,21 @@ const handleFileChange = (e: Event) => {
   form.video = file;
 };
 
-const handleDragOver = (e: DragEvent) => {
-  e.preventDefault();
-  isDragOver.value = true;
-};
+const handleDragOver = (e: DragEvent) => { e.preventDefault(); isDragOver.value = true; };
 const handleDragLeave = () => { isDragOver.value = false; };
 const handleDrop = (e: DragEvent) => {
-  e.preventDefault();
-  isDragOver.value = false;
+  e.preventDefault(); isDragOver.value = false;
   const file = e.dataTransfer?.files?.[0];
   if (file) form.video = file;
 };
-const removeFile = () => {
-  form.video = null;
-  if (fileInput.value) fileInput.value.value = '';
-};
-const getFileIcon = (file: File) => {
-  if (file.type.startsWith('audio/')) return Music;
-  if (file.type.startsWith('video/')) return Film;
-  return FileUpIcon;
-};
-const getFileSize = (size: number) => {
-  const kb = size / 1024;
-  if (kb < 1024) return `${kb.toFixed(1)} KB`;
-  return `${(kb / 1024).toFixed(1)} MB`;
-};
+const removeFile = () => { form.video = null; if (fileInput.value) fileInput.value.value = ''; };
+const getFileIcon = (file: File) => file.type.startsWith('audio/') ? Music : file.type.startsWith('video/') ? Film : FileUpIcon;
+const getFileSize = (size: number) => { const kb = size/1024; return kb < 1024 ? `${kb.toFixed(1)} KB` : `${(kb/1024).toFixed(1)} MB`; };
 
 const submitComment = async () => {
-  form.processing = true;
-  form.statusMessage = '';
-  form.statusType = '';
+  form.processing = true; form.statusMessage = ''; form.statusType = '';
   if (!form.video) { alert('เลือกไฟล์ก่อนนะ'); form.processing = false; return; }
   if (!form.url)   { alert('กรอก URL ก่อน');     form.processing = false; return; }
-
   try {
     await form.post(`/meetings/${meeting.id}/infos`, {
       forceFormData: true,
@@ -144,27 +126,17 @@ const statusBadge = computed(() => {
   return { text: s, cls: map[s] ?? 'bg-gray-100 text-gray-600' };
 });
 
-/* ========= Quick Stats (NEW) ========= */
+/* ========= Quick Stats ========= */
 const tjson = computed(() => meeting.info?.transcript_json ?? null);
-
-const segs = computed(() => {
-  const arr = tjson.value?.data;
-  return Array.isArray(arr) ? arr : [];
-});
-
+const segs = computed(() => Array.isArray(tjson.value?.data) ? tjson.value!.data : []);
 const totalSegments = computed(() => segs.value.length);
 
 const countList = computed(() => {
   if (Array.isArray(tjson.value?.count_speaker) && tjson.value!.count_speaker.length) {
-    return tjson.value!.count_speaker.map((cs: any) => ({
-      speaker: String(cs.speaker),
-      count: Number(cs.count) || 0,
-    }));
+    return tjson.value!.count_speaker.map((cs: any) => ({ speaker: String(cs.speaker), count: Number(cs.count) || 0 }));
   }
   const map = new Map<string, number>();
-  for (const s of segs.value) {
-    map.set(s.speaker, (map.get(s.speaker) ?? 0) + 1);
-  }
+  for (const s of segs.value) map.set(s.speaker, (map.get(s.speaker) ?? 0) + 1);
   return Array.from(map.entries()).map(([speaker, count]) => ({ speaker, count }));
 });
 
@@ -178,16 +150,26 @@ const mostActive = computed(() => {
   return countList.value.reduce((a, b) => (b.count > a.count ? b : a));
 });
 
-const distribution = computed(() => {
+const distributionTop3 = computed(() => {
   const total = totalSegments.value || 1;
   return countList.value
-    .map(c => ({
-      speaker: c.speaker,
-      count: c.count,
-      percent: Math.round((c.count / total) * 100),
-    }))
+    .map(c => ({ speaker: c.speaker, count: c.count, percent: Math.round((c.count / total) * 100) }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+});
+
+// ทั้งหมดสำหรับ Modal
+const distributionAll = computed(() => {
+  const total = totalSegments.value || 1;
+  return countList.value
+    .map(c => ({ speaker: c.speaker, count: c.count, percent: Math.round((c.count / total) * 100) }))
     .sort((a, b) => b.count - a.count);
 });
+
+/* ========= Modal: Speaker Distribution detail ========= */
+const speakerModalOpen = ref(false);
+const openSpeakerModal = () => speakerModalOpen.value = true;
+const closeSpeakerModal = () => speakerModalOpen.value = false;
 </script>
 
 <template>
@@ -230,80 +212,142 @@ const distribution = computed(() => {
         </div>
       </div>
 
-      <!-- Quick Stats (ระหว่าง Header กับ Transcript) -->
-      <div 
-        v-if="hasTranscript" 
-        class="rounded-xl border border-gray-200 dark:border-gray-800 p-5 bg-white dark:bg-gray-950"
-      >
-        <div class="mb-4">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Quick Stats</h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400">ภาพรวมสรุปจาก transcript ล่าสุด</p>
+      <!-- Quick Stats -->
+      <div v-if="hasTranscript" class="rounded-xl border border-gray-200 dark:border-gray-800 p-5 bg-white dark:bg-gray-950">
+        <div class="mb-4 flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Quick Stats</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400">ภาพรวมสรุปจาก transcript ล่าสุด</p>
+          </div>
+          <!-- <button
+            type="button"
+            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-sm"
+            @click="openSpeakerModal"
+          >
+            <PieChart class="h-4 w-4" />
+            More detail
+          </button> -->
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <!-- Most Active -->
           <div class="flex items-center gap-4 p-4 rounded-xl bg-sky-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-800 flex items-center justify-center">
-                <UserRound class="h-5 w-5 text-blue-600 dark:text-blue-300" />
-                </div>
-                <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Most Active</p>
-                <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                    {{ meeting.info?.transcript_json?.count_speaker?.[0]?.speaker ?? '-' }}
-                </p>
-                </div>
+            <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-800 flex items-center justify-center">
+              <UserRound class="h-5 w-5 text-blue-600 dark:text-blue-300" />
             </div>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Most Active</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ mostActive.speaker }}
+              </p>
+            </div>
+          </div>
 
           <!-- Total Speakers -->
           <div class="flex items-center gap-4 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
-                <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-800 flex items-center justify-center">
-                <Users class="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
-                </div>
-                <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Total Speakers</p>
-                <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                    {{ meeting.info?.transcript_json?.num_speakers ?? 0 }}
-                </p>
-                </div>
-           </div>
+            <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-800 flex items-center justify-center">
+              <Users class="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+            </div>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Total Speakers</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ totalSpeakers }}</p>
+            </div>
+          </div>
 
           <!-- Total Segments -->
           <div class="flex items-center gap-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
             <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-800 flex items-center justify-center">
-            <ListOrderedIcon class="h-5 w-5 text-amber-600 dark:text-amber-300" />
+              <ListOrderedIcon class="h-5 w-5 text-amber-600 dark:text-amber-300" />
             </div>
             <div>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Total Segments</p>
-            <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                {{ meeting.info?.transcript_json?.data?.length ?? 0 }}
-            </p>
-            </div>
-           </div>
-
-          <!-- Speaker Distribution -->
-          <div class="rounded-lg border border-gray-200 dark:border-gray-800 p-4">
-            <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">Speaker Distribution</div>
-            <div class="space-y-2 max-h-36 overflow-auto pr-1">
-              <div v-for="d in distribution" :key="d.speaker">
-                <div class="flex items-center justify-between text-xs mb-1">
-                  <span class="font-medium text-gray-700 dark:text-gray-200 truncate">{{ d.speaker }}</span>
-                  <span class="text-gray-500 dark:text-gray-400">{{ d.percent }}%</span>
-                </div>
-                <div class="w-full h-2 rounded bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                  <div
-                    class="h-2 rounded bg-sky-500 dark:bg-sky-600 transition-all"
-                    :style="{ width: `${d.percent}%` }"
-                  />
-                </div>
-              </div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Total Segments</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ totalSegments }}</p>
             </div>
           </div>
+
+          <!-- Speaker Distribution (mini) -->
+          <div
+            class="bg-sky-50 rounded-xl border border-sky-200 p-4 cursor-pointer
+                    hover:bg-sky-100 transition shadow-sm hover:shadow
+                    focus:outline-none focus:ring-2 focus:ring-sky-300"
+            role="button"
+            tabindex="0"
+            @click="openSpeakerModal"
+            @keydown.enter.prevent="openSpeakerModal"
+            @keydown.space.prevent="openSpeakerModal"
+            >
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-3">
+                <div class="text-xs font-semibold text-sky-700">
+                Speaker Distribution
+                </div>
+                <div class="text-xs text-sky-600">
+                Top 3
+                </div>
+            </div>
+
+            <!-- Bars -->
+            <div class="space-y-3 max-h-36 overflow-auto pr-1">
+                <div v-for="d in distributionTop3" :key="d.speaker">
+                <div class="flex items-center justify-between text-xs mb-1">
+                    <span class="font-medium text-sky-800 truncate">{{ d.speaker }}</span>
+                    <span class="text-sky-600">{{ d.percent }}%</span>
+                </div>
+                <div class="w-full h-2 rounded-full bg-white overflow-hidden">
+                    <div
+                    class="h-2 rounded-full bg-sky-500 transition-all"
+                    :style="{ width: `${d.percent}%` }"
+                    />
+                </div>
+                </div>
+            </div>
+
+            <!-- Footer hint (optional) -->
+            <div class="mt-3 text-[11px] text-sky-600/80">
+                Click to see all speakers
+            </div>
+</div>
+
         </div>
+
+        <!-- Modal: Speaker detail -->
+        <Modal v-if="speakerModalOpen" @close="closeSpeakerModal">
+          <template #body>
+            <div class="relative w-full max-w-[720px] mx-auto rounded-2xl bg-white dark:bg-gray-900 p-6">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Speaker Distribution</h3>
+                <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" @click="closeSpeakerModal">
+                  <X class="h-5 w-5" />
+                </button>
+              </div>
+
+              <div class="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+                <div v-for="d in distributionAll" :key="d.speaker" class="rounded-lg border border-gray-200 dark:border-gray-800 p-3">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <UserRound class="h-4 w-4 text-sky-600 dark:text-sky-400" />
+                      <span class="font-medium text-gray-800 dark:text-gray-100">{{ d.speaker }}</span>
+                    </div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ d.count }} segments • {{ d.percent }}%
+                    </div>
+                  </div>
+                  <div class="mt-2 w-full h-2 rounded bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                    <div class="h-2 rounded bg-sky-500 dark:bg-sky-600" :style="{ width: `${d.percent}%` }" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-5 flex justify-end">
+                <button class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-sm" @click="closeSpeakerModal">Close</button>
+              </div>
+            </div>
+          </template>
+        </Modal>
       </div>
 
       <!-- Upload card (Drag & Drop) -->
       <form v-if="!hasMedia" @submit.prevent="submitComment" class="space-y-6">
-        <!-- Media File -->
         <div>
           <div class="flex items-center gap-3 mb-6">
             <div class="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/20 rounded-lg flex items-center justify-center">
@@ -313,12 +357,8 @@ const distribution = computed(() => {
             <span class="text-red-500 text-sm">*</span>
           </div>
 
-          <!-- File Drop Zone -->
           <div 
-            @dragover="handleDragOver"
-            @dragleave="handleDragLeave"
-            @drop="handleDrop"
-            @click="openFileDialog"
+            @dragover="handleDragOver" @dragleave="handleDragLeave" @drop="handleDrop" @click="openFileDialog"
             :class="[
               'relative border-2 border-dashed rounded-2xl p-8 cursor-pointer transition-all duration-200',
               isDragOver 
@@ -329,68 +369,36 @@ const distribution = computed(() => {
               form.errors.video && 'border-red-300 bg-red-50 dark:bg-red-900/20'
             ]"
           >
-            <input
-              type="file"
-              accept="audio/*,video/*"
-              ref="fileInput"
-              @change="handleFileChange"
-              class="hidden"
-            />
-            
-            <!-- Upload State -->
+            <input type="file" accept="audio/*,video/*" ref="fileInput" @change="handleFileChange" class="hidden" />
             <div v-if="!form.video" class="text-center">
               <div class="w-16 h-16 bg-sky-100 dark:bg-sky-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <UploadCloud class="h-8 w-8 text-sky-500 dark:text-sky-400" />
               </div>
-              <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Drop your file here or click to browse
-              </h4>
-              <p class="text-gray-500 dark:text-gray-400 mb-4">
-                Upload audio or video files for transcription
-              </p>
-              
-              <!-- Supported Formats -->
+              <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Drop your file here or click to browse</h4>
+              <p class="text-gray-500 dark:text-gray-400 mb-4">Upload audio or video files for transcription</p>
               <div class="flex flex-wrap gap-2 justify-center">
-                <span v-for="format in supportedFormats" :key="format" 
-                      class="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded-lg">
-                  {{ format }}
-                </span>
+                <span v-for="format in supportedFormats" :key="format" class="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded-lg">{{ format }}</span>
               </div>
             </div>
-
-            <!-- File Preview -->
             <div v-else class="text-center">
               <div class="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <component :is="getFileIcon(form.video)" class="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
               </div>
-              
               <div class="mb-4">
-                <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                  {{ form.video.name }}
-                </h4>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ getFileSize(form.video.size) }} • {{ form.video.type || 'Unknown format' }}
-                </p>
+                <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">{{ form.video.name }}</h4>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ getFileSize(form.video.size) }} • {{ form.video.type || 'Unknown format' }}</p>
               </div>
-
-              <button
-                type="button"
-                @click.stop="removeFile"
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-100 dark:bg-red-900/20 hover:bg-red-200 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-all duration-200"
-              >
-                <X class="h-4 w-4" />
-                Remove File
+              <button type="button" @click.stop="removeFile" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-100 dark:bg-red-900/20 hover:bg-red-200 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-all duration-200">
+                <X class="h-4 w-4" /> Remove File
               </button>
             </div>
           </div>
 
           <div v-if="form.errors.video" class="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm mt-3">
-            <AlertCircle class="h-4 w-4" />
-            {{ form.errors.video }}
+            <AlertCircle class="h-4 w-4" /> {{ form.errors.video }}
           </div>
         </div>
 
-        <!-- Processing Info -->
         <div class="bg-sky-50 dark:bg-sky-900/10 rounded-xl p-6 border border-sky-200 dark:border-sky-800">
           <div class="flex items-start gap-3">
             <div class="w-8 h-8 bg-sky-200 dark:bg-sky-800 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -408,11 +416,8 @@ const distribution = computed(() => {
           </div>
         </div>
 
-        <!-- Submit -->
         <div class="pt-2">
-          <button
-            type="submit"
-            :disabled="form.processing"
+          <button type="submit" :disabled="form.processing"
             :class="['inline-flex items-center gap-2 rounded-md px-4 py-2 text-white transition',
                      form.processing ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700']">
             <span>{{ form.processing ? 'กำลังอัปโหลด…' : 'อัปโหลด' }}</span>
@@ -423,23 +428,28 @@ const distribution = computed(() => {
 
       <!-- Content card -->
       <div v-if="hasMedia" class="relative rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-        <!-- Segmented toggle -->
         <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-blue-600 dark:text-white">
+            <div>
+                <h2 class="text-lg font-semibold text-blue-600 dark:text-white">
             {{ showFullView ? 'Meeting Transcript' : 'Meeting Summary' }}
-          </h2>
-
-        <div class="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <button type="button"
-                    @click="showFullView = true"
-                    :class="['px-3 py-1.5 text-sm transition',
-                             showFullView ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800']">
+            </h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {{ showFullView
+                ? 'Full transcript with timestamps and speaker labels'
+                : 'Key points and highlights from the meeting' }}
+            </p>
+            </div>
+        
+          
+          <div class="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <button type="button" @click="showFullView = true"
+              :class="['px-3 py-1.5 text-sm transition',
+                       showFullView ? 'bg-sky-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800']">
               <ListOrderedIcon class="inline h-4 w-4 mr-1" /> Transcript
             </button>
-            <button type="button"
-                    @click="showFullView = false"
-                    :class="['px-3 py-1.5 text-sm transition border-l border-gray-200 dark:border-gray-700',
-                             !showFullView ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800']">
+            <button type="button" @click="showFullView = false"
+              :class="['px-3 py-1.5 text-sm transition border-l border-gray-200 dark:border-gray-700',
+                       !showFullView ? 'bg-sky-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800']">
               <Lightbulb class="inline h-4 w-4 mr-1" /> Summaries
             </button>
           </div>
