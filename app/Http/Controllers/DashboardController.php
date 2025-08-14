@@ -11,7 +11,7 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $meetings = Meeting::latest()->with(['user'])->get();
+        $meetings = Meeting::latest()->with(['user','info'])->get();
         $totalMeetings = Meeting::count();
         $totalUsers = User::count();
 

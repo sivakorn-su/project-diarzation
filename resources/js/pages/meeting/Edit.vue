@@ -73,6 +73,15 @@ function toLocalInputValue(utcString: string): string {
         <h2 class="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Edit Meeting</h2>
         <form @submit.prevent="handleUpdate" class="space-y-8">
           <!-- Date/Time Row -->
+          <div>
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Title</label>
+            <input
+              v-model="form.title"
+              class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-400 focus:outline-none shadow-sm"
+              rows="4"
+              placeholder="Add a description"
+            >
+          </div>
           <div class="flex flex-col md:flex-row md:items-end gap-4">
             <div class="flex-1">
               <label class="block text-xs font-semibold text-gray-500 mb-1">Start</label>

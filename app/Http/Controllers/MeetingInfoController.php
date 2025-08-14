@@ -119,7 +119,7 @@ class MeetingInfoController extends Controller
     {
 
         $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->first();
-
+        
         $tempDir = storage_path('app/temp');
         if (!file_exists($tempDir)) {
             mkdir($tempDir, 0777, true);
@@ -130,6 +130,7 @@ class MeetingInfoController extends Controller
         }
 
         $meetingInfo->update(['status' => 'processing']);
+        
         ProcessMeetingTranscript::dispatch($meetingInfo->id)->onQueue('default');
        
         return Inertia::location(url()->previous());

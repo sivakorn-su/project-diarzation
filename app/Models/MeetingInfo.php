@@ -15,7 +15,7 @@ class MeetingInfo extends Model
         'meeting_id',
         'media_paths',
         'transcript_json',
-        'statuss'
+        'status'
     ];
 
     protected $casts = [

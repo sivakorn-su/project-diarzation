@@ -49,6 +49,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                 <!-- Service Status Card -->
                 <ServiceStatusCard />
             </div>
+            
             <!-- Recent Meetings Table -->
             <div class="rounded-xl bg-white dark:bg-gray-900 shadow p-6 border border-gray-100 dark:border-gray-800">
                 <h2 class="text-lg font-semibold mb-4 text-blue-600 dark:text-blue-400">Recent Meetings</h2>

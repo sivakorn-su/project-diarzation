@@ -69,9 +69,7 @@
               <div class="flex flex-wrap gap-2">
                 <input v-model="editItem.speaker" class="border rounded px-2 py-1 text-sm w-36 dark:bg-gray-900 dark:border-gray-700" placeholder="Speaker" />
                 <input v-model="editItem.start" class="border rounded px-2 py-1 text-sm w-24 dark:bg-gray-900 dark:border-gray-700" placeholder="Start" />
-                <input v-model="editItem.end" class="border rounded px-2 py-1 text-sm w-24 dark:bg-gray-900 dark:border-gray-700" placeholder="End" />
-                <input v-model="editItem.filename" class="border rounded px-2 py-1 text-sm flex-1 dark:bg-gray-900 dark:border-gray-700" placeholder="Filename" />
-              </div>
+                <input v-model="editItem.end" class="border rounded px-2 py-1 text-sm w-24 dark:bg-gray-900 dark:border-gray-700" placeholder="End" />              </div>
 
               <div v-if="row.item.avg_probability != null" class="mt-1">
                 <span :class="probBadge(row.item.avg_probability)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border">
@@ -101,6 +99,7 @@
                 <strong>{{ row.item.speaker }}</strong> : {{ row.item.start }}s - {{ row.item.end }}s
               </p>
               <div class="flex items-center gap-2 flex-shrink-0">
+                {{ row.item.overlab }}
                 <span v-if="row.item.avg_probability != null" :class="probBadge(row.item.avg_probability)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border">
                   {{ Math.round(Number(row.item.avg_probability) * 100) }}%
                 </span>
@@ -179,6 +178,7 @@ const props = defineProps({
         text: string;
         avg_probability?: number | string;
         llm_corrected_text?: string;
+        has_overlap?:boolean;
       }>;
       count_speaker?: Array<{ speaker: string; count: number | string }>;
       summaries?: string[];

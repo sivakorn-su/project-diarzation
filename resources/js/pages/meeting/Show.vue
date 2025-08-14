@@ -6,7 +6,9 @@ import { ref, computed } from 'vue';
 import { 
   Lightbulb, ListOrderedIcon, ListFilterIcon, FileUpIcon, Loader, 
   PlayCircle, UserRound, Mail, Calendar, Clock, Film, CheckCircle2, XCircle,
-  UploadCloud, X, AlertCircle, Music, Users, PieChart
+  UploadCloud, X, AlertCircle, Music, Users, PieChart,
+  ClipboardListIcon,
+  MessageSquareTextIcon
 } from 'lucide-vue-next';
 import Modal from '@/components/Modal.vue';
 
@@ -211,7 +213,7 @@ const closeSpeakerModal = () => speakerModalOpen.value = false;
           <p class="leading-relaxed">{{ meeting.info?.description || '-' }}</p>
         </div>
       </div>
-
+     
       <!-- Quick Stats -->
       <div v-if="hasTranscript" class="rounded-xl border border-gray-200 dark:border-gray-800 p-5 bg-white dark:bg-gray-950">
         <div class="mb-4 flex items-center justify-between">
@@ -219,14 +221,6 @@ const closeSpeakerModal = () => speakerModalOpen.value = false;
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Quick Stats</h3>
             <p class="text-sm text-gray-500 dark:text-gray-400">ภาพรวมสรุปจาก transcript ล่าสุด</p>
           </div>
-          <!-- <button
-            type="button"
-            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-sm"
-            @click="openSpeakerModal"
-          >
-            <PieChart class="h-4 w-4" />
-            More detail
-          </button> -->
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -439,25 +433,24 @@ const closeSpeakerModal = () => speakerModalOpen.value = false;
                 : 'Key points and highlights from the meeting' }}
             </p>
             </div>
-        
           
           <div class="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
             <button type="button" @click="showFullView = true"
               :class="['px-3 py-1.5 text-sm transition',
                        showFullView ? 'bg-sky-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800']">
-              <ListOrderedIcon class="inline h-4 w-4 mr-1" /> Transcript
+              <MessageSquareTextIcon class="inline h-4 w-4 mr-1" /> Transcript
             </button>
             <button type="button" @click="showFullView = false"
               :class="['px-3 py-1.5 text-sm transition border-l border-gray-200 dark:border-gray-700',
                        !showFullView ? 'bg-sky-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800']">
-              <Lightbulb class="inline h-4 w-4 mr-1" /> Summaries
+              <ClipboardListIcon class="inline h-4 w-4 mr-1" /> Summaries
             </button>
           </div>
         </div>
 
         <!-- Transcript view -->
         <div v-if="showFullView" class="mt-6">
-          <div v-if="hasTranscript" class="flex flex-col sm:flex-row gap-6 w-full min-h-[600px]">
+          <div v-if="hasMedia" class="flex flex-col sm:flex-row gap-6 w-full min-h-[600px]">
             <TranscriptPanel
               :meeting-id="meeting.id"
               :speakers="speakers"
@@ -468,10 +461,10 @@ const closeSpeakerModal = () => speakerModalOpen.value = false;
               :transcript_json="meeting.info!.transcript_json"
             />
           </div>
-          <div v-else class="mt-10 flex flex-col items-center justify-center text-gray-500">
+          <!-- <div v-else class="mt-10 flex flex-col items-center justify-center text-gray-500">
             <PlayCircle class="h-10 w-10 mb-2" />
             <p class="text-sm">ยังไม่มี transcript — กดประมวลผลจากหลังบ้าน หรืออัปโหลดใหม่</p>
-          </div>
+          </div> -->
         </div>
 
         <!-- Summaries view -->
