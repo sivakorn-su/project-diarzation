@@ -32,6 +32,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/meetings/{meeting}/edit', [MeetingController::class, 'edit'])->name('meetings.edit');
     Route::put('/meetings/{meeting}', [MeetingController::class, 'update'])->name('meetings.update');
 
+    Route::prefix('meetings/{meeting}/transcript/segments')->group(function () {
+        Route::put('{segment}', [TranscriptSegmentsController::class, 'update']); // แก้ไขราย segment
+        Route::delete('{segment}', [TranscriptSegmentsController::class, 'destroy']); // ลบราย segment
+    });
+
         // Transcript CRUD
     // Route::resource('transcripts', TranscriptController::class);
 

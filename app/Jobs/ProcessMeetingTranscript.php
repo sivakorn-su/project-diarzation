@@ -10,6 +10,8 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
+use App\Models\TranscriptSegments;
 
 class ProcessMeetingTranscript implements ShouldQueue
 {
@@ -80,11 +82,32 @@ class ProcessMeetingTranscript implements ShouldQueue
             throw new \RuntimeException('No transcript data received.');
         }
 
-        // เซฟผลลัพธ์
-        $meetingInfo->update([
-            'transcript_json' => $result,
-            'status' => 'done',
-        ]);
+        // อัพเดตข้อมูล transcript
+        $data = $result['data'] ?? [];
+        if (!is_array($data)) $data = [];
+        DB::transaction(function () use ($meetingInfo, $result, $data) {
+
+            // ล้างของเก่าก่อน (ถ้าอยาก keep เดิม เปลี่ยนเป็น upsert ด้านล่าง)
+            TranscriptSegment::where('meeting_info_id', $meetingInfo->id)->delete();
+        
+            // วนสร้างทีละ segment ด้วย Eloquent::create()
+            foreach ($data as $i => $seg) {
+                TranscriptSegment::create([
+                    'meeting_info_id'    => $meetingInfo->id,
+                    'idx'                => $i,
+                    'start'              => $seg['start'] ?? null,
+                    'end'                => $seg['end'] ?? null,
+                    'text'               => $seg['text'] ?? null,
+                    'llm_corrected_text' => $seg['llm_corrected_text'] ?? null,
+                    'speaker'            => $seg['speaker'] ?? null,
+                    'filename'           => $seg['filename'] ?? null,
+                    'avg_probability'    => $seg['avg_probability'] ?? null,
+                ]);
+            }
+            $meetingInfo->update([
+                'status' => 'done',
+            ]);
+        });
     }
 
     public function failed(\Throwable $e): void

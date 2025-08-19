@@ -55,7 +55,7 @@
     <div v-if="transcript_json" class="space-y-2 overflow-y-auto max-h-[70vh] p-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
       <div
         v-for="row in displayList"
-        :key="`${row.id}-${row.idx}`"
+        :key="`${row.item.id}`"
         :class="[
           'group rounded-xl border p-4 shadow-sm flex items-start gap-3 cursor-pointer bg-white dark:bg-gray-900 hover:bg-slate-50 dark:hover:bg-gray-800 transition',
           isCurrent(row.item) ? 'ring-1 ring-sky-500/40 border-sky-300 dark:border-sky-700' : 'border-gray-200 dark:border-gray-700'
@@ -63,58 +63,28 @@
         @click="jumpToTime(row.item.start)"
       >
         <img src="/avatar-boy-svgrepo-com.svg" alt="Avatar" class="w-8 h-8 rounded-full object-cover" />
+
         <div class="flex-1 overflow-hidden">
-          <template v-if="editingIndex === row.idx">
-            <div class="flex flex-col gap-2">
-              <div class="flex flex-wrap gap-2">
-                <input v-model="editItem.speaker" class="border rounded px-2 py-1 text-sm w-36 dark:bg-gray-900 dark:border-gray-700" placeholder="Speaker" />
-                <input v-model="editItem.start" class="border rounded px-2 py-1 text-sm w-24 dark:bg-gray-900 dark:border-gray-700" placeholder="Start" />
-                <input v-model="editItem.end" class="border rounded px-2 py-1 text-sm w-24 dark:bg-gray-900 dark:border-gray-700" placeholder="End" />              </div>
-
-              <div v-if="row.item.avg_probability != null" class="mt-1">
-                <span :class="probBadge(row.item.avg_probability)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border">
-                  {{ Math.round(Number(row.item.avg_probability) * 100) }}%
-                </span>
-              </div>
-
-              <p class="font-semibold text-green-700 mt-1">AI Suggested</p>
-              <textarea
-                disabled
-                :value="editItem.llm_corrected_text || '-'"
-                class="break-words px-2 py-1 border border-green-200 dark:border-green-800 text-sm rounded-lg text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20"
-              ></textarea>
-
-              <textarea v-model="editItem.text" class="border rounded px-2 py-2 text-sm dark:bg-gray-900 dark:border-gray-700" placeholder="Text"></textarea>
-
-              <div class="flex gap-2 mt-2">
-                <button @click.stop="saveEdit(row.idx)" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-sm rounded">Save</button>
-                <button @click.stop="cancelEdit" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 text-sm rounded">Cancel</button>
+          <div class="flex items-start justify-between mb-2">
+            <p class="truncate">
+              <strong>{{ row.item.speaker }}</strong> :
+              {{ row.item.start }}s - {{ row.item.end }}s
+            </p>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <span v-if="row.item.avg_probability != null" :class="probBadge(row.item.avg_probability)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border">
+                {{ Math.round(Number(row.item.avg_probability) * 100) }}%
+              </span>
+              <div class="flex gap-1">
+                <button @click.stop="openEditModal(row.item)" class="text-gray-400 hover:text-blue-500">
+                  <PencilIcon class="h-4 w-4" />
+                </button>
+                <button @click.stop="openDeleteModal(row.item)" class="text-gray-400 hover:text-red-500">
+                  <TrashIcon class="h-4 w-4" />
+                </button>
               </div>
             </div>
-          </template>
-
-          <template v-else>
-            <div class="flex items-start justify-between mb-2">
-              <p class="truncate">
-                <strong>{{ row.item.speaker }}</strong> : {{ row.item.start }}s - {{ row.item.end }}s
-              </p>
-              <div class="flex items-center gap-2 flex-shrink-0">
-                {{ row.item.overlab }}
-                <span v-if="row.item.avg_probability != null" :class="probBadge(row.item.avg_probability)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border">
-                  {{ Math.round(Number(row.item.avg_probability) * 100) }}%
-                </span>
-                <div class="opacity-0 group-hover:opacity-100 transition flex gap-1">
-                  <button @click.stop="startEdit(row.idx, row.item)" class="text-gray-400 hover:text-blue-600">
-                    <Pencil class="w-4 h-4" />
-                  </button>
-                  <button @click.stop="deleteItem(row.idx)" class="text-gray-400 hover:text-red-600">
-                    <Trash class="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-            <p class="break-words leading-relaxed text-gray-800 dark:text-gray-200">{{ row.item.text }}</p>
-          </template>
+          </div>
+          <p class="break-words leading-relaxed text-gray-800 dark:text-gray-200">{{ row.item.text }}</p>
         </div>
       </div>
 
@@ -134,7 +104,7 @@
         <div v-if="loading" class="flex flex-col items-center justify-center gap-2 text-sm text-blue-600">
           <svg class="w-10 h-10 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a 8 8 0 018-8v8z"></path>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
           </svg>
           <span>Processing</span>
         </div>
@@ -151,12 +121,78 @@
       </transition>
     </div>
   </div>
+
+  <!-- Edit Modal -->
+  <Modal v-if="editOpen" @close="closeEditModal">
+    <template #body>
+      <div class="relative w-full max-w-[720px] mx-auto rounded-2xl bg-white dark:bg-gray-900 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2 ">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Edit Segment</h3>
+          <span v-if="editModel.avg_probability != null" :class="probBadge( editModel.avg_probability)" class="px-2.5 py-0.5 rounded-full text-xs font-medium border">
+                {{ Math.round(Number( editModel.avg_probability) * 100) }}%
+          </span>
+          </div>
+          <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" @click="closeEditModal">✕</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-blue-500">Speaker</label>
+            <input v-model="editModel.speaker" class="mt-1 w-full rounded border px-3 py-2 text-sm bg-sky-50 border-sky-500" />
+          </div>
+          <div class="flex-row md:flex justify-between gap-3">
+            <div>
+            <label class="text-xs text-blue-500">Start (s)</label>
+            <input v-model="editModel.start" type="number" step="0.01" class="mt-1 w-full rounded border px-3 py-2 text-sm bg-sky-50 border-sky-500" />
+          </div>
+          <div>
+            <label class="text-xs text-blue-500">End (s)</label>
+            <input v-model="editModel.end" type="number" step="0.01" class="mt-1 w-full rounded border px-3 py-2 text-sm bg-sky-50 border-sky-500" />
+          </div>
+          </div>
+          <div class="md:col-span-2">
+            <label class="text-xs text-green-500">LLM Suggested</label>
+            <textarea  disabled v-model="editModel.llm_corrected_text" rows="4" class="mt-1 h-fit w-full rounded border px-3 py-2 text-sm bg-green-50 border-green-500"></textarea>
+          </div>
+          <div class="md:col-span-2">
+            <label class="text-xs text-blue-500">Text</label>
+            <textarea v-model="editModel.text" rows="4" class="mt-1 h-fit w-full rounded border px-3 py-2 text-sm bg-sky-50 border-sky-500"></textarea>
+          </div>
+        </div>
+
+        <div class="mt-5 flex justify-end gap-2">
+          <button class="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200" @click="closeEditModal">Cancel</button>
+          <button :disabled="formEdit.processing" class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white" @click="saveEdit">
+            {{ formEdit.processing ? 'Saving…' : 'Save' }}
+          </button>
+        </div>
+      </div>
+    </template>
+  </Modal>
+
+  <!-- Delete Modal -->
+  <Modal v-if="deleteOpen" @close="closeDeleteModal">
+    <template #body>
+      <div class="relative w-full max-w-[520px] mx-auto rounded-2xl bg-white dark:bg-gray-900 p-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Delete Segment</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-300">ยืนยันลบ segment นี้หรือไม่? การลบไม่สามารถย้อนกลับได้</p>
+        <div class="mt-5 flex justify-end gap-2">
+          <button class="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200" @click="closeDeleteModal">Cancel</button>
+          <button :disabled="formDelete.processing" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white" @click="confirmDelete">
+            {{ formDelete.processing ? 'Deleting…' : 'Delete' }}
+          </button>
+        </div>
+      </div>
+    </template>
+  </Modal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch, PropType, onMounted, onBeforeUnmount, watchEffect } from 'vue';
-import { RefreshCcw, Pencil, Trash, FileUpIcon } from 'lucide-vue-next';
+import { RefreshCcw, FileUpIcon, PencilIcon, TrashIcon } from 'lucide-vue-next';
 import { useForm } from '@inertiajs/vue3';
+import Modal from '@/components/Modal.vue';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
 
@@ -171,6 +207,7 @@ const props = defineProps({
   transcript_json: {
     type: Object as PropType<{
       data: Array<{
+        id: string;
         start: number | string;
         end: number | string;
         speaker: string;
@@ -178,7 +215,7 @@ const props = defineProps({
         text: string;
         avg_probability?: number | string;
         llm_corrected_text?: string;
-        has_overlap?:boolean;
+        has_overlap?: boolean;
       }>;
       count_speaker?: Array<{ speaker: string; count: number | string }>;
       summaries?: string[];
@@ -193,7 +230,7 @@ const props = defineProps({
   }
 });
 
-/* Player / Time highlight */
+/* ===== Player / Time highlight ===== */
 const meetingVideo = ref<HTMLVideoElement | null>(null);
 let player: any = null;
 const currentTime = ref(0);
@@ -255,8 +292,9 @@ function isCurrent(item: { start: number|string; end: number|string }) {
   return Number.isFinite(now) && now >= s && now <= e;
 }
 
-/* ===== Master transcript (full dataset) ===== */
+/* ===== Dataset & filtering ===== */
 type Seg = {
+  id: string;
   start: number | string;
   end: number | string;
   speaker: string;
@@ -265,18 +303,18 @@ type Seg = {
   avg_probability?: number | string;
   llm_corrected_text?: string;
 };
-const segId = (s: Seg) => `${s.filename ?? ''}|${s.start}`;
 
 const masterTranscript = ref<Seg[]>([]);
 
-// รองรับ transcript_json เป็น object หรือ string
 const rawData = computed(() => {
   const tj = props.transcript_json as any;
-  if (!tj) return null;
+  if (!tj) return [];
   if (Array.isArray(tj.data)) return tj.data;
   if (typeof tj === 'string') {
-    try { const obj = JSON.parse(tj); return Array.isArray(obj?.data) ? obj.data : []; }
-    catch { return []; }
+    try {
+      const obj = JSON.parse(tj);
+      return Array.isArray(obj?.data) ? obj.data : [];
+    } catch { return []; }
   }
   return [];
 });
@@ -286,95 +324,131 @@ watchEffect(() => {
   masterTranscript.value = all.map(s => ({ ...s }));
 });
 
-/* กรองเฉยๆ พร้อม index จริง + id เสถียร */
 const displayList = computed(() => {
   const want = (props.selectedSpeaker || '').trim();
-  const rows: { item: Seg; idx: number; id: string }[] = [];
+  const rows: { item: Seg; idx: number }[] = [];
   masterTranscript.value.forEach((item, idx) => {
-    if (!want || item.speaker === want) rows.push({ item, idx, id: segId(item) });
+    if (!want || item.speaker === want) rows.push({ item, idx });
   });
   return rows;
 });
 
-/* Edit/Delete ที่ index จริงของ master */
-const editingIndex = ref<number|null>(null);
-const editItem = reactive<Seg>({ start: '', end: '', speaker: '', filename: '', text: '' });
+/* ===== Edit in Modal (PATCH per segment) ===== */
+const editOpen = ref(false);
+const editModel = reactive<{
+  id: string;
+  start: string | number;
+  end: string | number;
+  speaker: string;
+  filename: string;
+  text: string;
+  avg_probability?: string | number;
+  llm_corrected_text?: string;
+}>({
+  id: '',
+  start: '',
+  end: '',
+  speaker: '',
+  filename: '',
+  text: '',
+  avg_probability: '',
+  llm_corrected_text: ''
+});
 
-function startEdit(globalIdx: number, item: Seg) {
-  editingIndex.value = globalIdx;
-  Object.assign(editItem, item);
+function openEditModal(seg: Seg) {
+  editModel.id = seg.id;
+  editModel.start = seg.start;
+  editModel.end = seg.end;
+  editModel.speaker = seg.speaker;
+  editModel.text = seg.text;
+  editOpen.value = true;
 }
-function cancelEdit() { editingIndex.value = null; }
+function closeEditModal() { editOpen.value = false; }
 
-async function saveEdit(globalIdx: number) {
-  if (globalIdx == null) return;
-  const row = masterTranscript.value[globalIdx];
-  if (!row) return;
-  masterTranscript.value[globalIdx] = { ...row, ...editItem, filename: editItem.filename ?? '' };
-  editingIndex.value = null;
-  await saveTranscript();
-}
-async function deleteItem(globalIdx: number) {
-  if (globalIdx == null) return;
-  masterTranscript.value.splice(globalIdx, 1);
-  await saveTranscript();
+const formEdit = useForm({
+  start: '', end: '', speaker: '', filename: '', text: ''
+});
+
+async function saveEdit() {
+  // map model -> form payload
+  formEdit.start = String(editModel.start);
+  formEdit.end = String(editModel.end);
+  formEdit.speaker = editModel.speaker;
+  formEdit.text = editModel.text;
+  console.log('Saving edit:',editModel.id);
+  // PATCH /meetings/{meetingId}/transcript/segments/{id}
+  await formEdit.put(`/meetings/${props.meetingId}/transcript/segments/${editModel.id}`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      // optimistic update in local list
+      const i = masterTranscript.value.findIndex(s => s.id === editModel.id);
+      if (i !== -1) {
+        masterTranscript.value[i] = {
+          ...masterTranscript.value[i],
+          start: editModel.start,
+          end: editModel.end,
+          speaker: editModel.speaker,
+          filename: editModel.filename,
+          text: editModel.text,
+          avg_probability: editModel.avg_probability as any,
+          llm_corrected_text: editModel.llm_corrected_text
+        };
+      }
+      closeEditModal();
+    }
+  });
 }
 
-/* Save — ส่งทั้งก้อน + stats */
-const form = useForm({ transcript_json: '' as string });
+/* ===== Delete with Modal (DELETE per segment) ===== */
+const deleteOpen = ref(false);
+const deleteTargetId = ref<string>('');
+
+function openDeleteModal(seg: Seg) {
+  deleteTargetId.value = seg.id;
+  deleteOpen.value = true;
+}
+function closeDeleteModal() { deleteOpen.value = false; }
+
+const formDelete = useForm({});
+
+async function confirmDelete() {
+  const id = deleteTargetId.value;
+  if (!id) return;
+
+  await formDelete.delete(`/meetings/${props.meetingId}/transcript/segments/${encodeURIComponent(id)}`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      const i = masterTranscript.value.findIndex(s => s.id === id);
+      if (i !== -1) masterTranscript.value.splice(i, 1);
+      closeDeleteModal();
+    }
+  });
+}
+
+/* ===== Other actions ===== */
+const form = useForm({}); // for reTranscript only
 const loading = ref(false);
 const error = ref<string | null>(null);
 const success = ref(false);
 
-function recomputeStats(list: Seg[]) {
-  const total_sentence = list.length;
-  const counts = new Map<string, number>();
-  for (const s of list) counts.set(s.speaker || 'Unknown', (counts.get(s.speaker || 'Unknown') ?? 0) + 1);
-  const count_speaker = Array.from(counts.entries()).map(([speaker, count]) => ({ speaker, count }));
-  const num_speakers = counts.size;
-  const speaker_array = Array.from(counts.keys());
-  return { total_sentence, count_speaker, num_speakers, speaker_array };
-}
-
-async function saveTranscript() {
-  loading.value = true; error.value = null; success.value = false;
-
-  // อนุญาตให้ว่างทั้งก้อนได้ (ลบหมด)
-  const base: any = (typeof props.transcript_json === 'string')
-    ? (JSON.parse(props.transcript_json || '{}') || {})
-    : (props.transcript_json || {});
-
-  const stats = recomputeStats(masterTranscript.value);
-  const fullPayload = {
-    ...base,
-    data: masterTranscript.value,
-    ...stats,
-    video_path: base.video_path ?? props.videoPath ?? '',
-  };
-
-  form.transcript_json = JSON.stringify(fullPayload);
-  form.put(`/meetings/${props.meetingId}/transcript/update`, {
-    onSuccess: () => { success.value = true; },
-    onError: (errors: any) => { error.value = errors?.error || 'Unknown error'; },
-    onFinish: () => { loading.value = false; }
-  });
-}
-
-/* Actions */
 function onSelectSpeaker(e: Event) {
   const target = e.target as HTMLSelectElement | null;
   if (target) emit('update:selectedSpeaker', target.value);
 }
+
 const reTranscript = () => {
   loading.value = true; error.value = null; success.value = false;
   form.post(`/meetings/${props.meetingId}/transcript`, {
     preserveScroll: true,
     onSuccess: () => { success.value = true; },
-    onError: (errors) => { error.value = errors?.error || 'Unknown error'; },
-    onFinish: () => { loading.value = false; },
+    onError: (errors: any) => { error.value = errors?.error || 'Unknown error'; },
+    onFinish: () => { loading.value = false; }
   });
 };
-function exportDocx() { window.open(`/meetings/${props.meetingId}/transcript/export-docx`, '_blank'); }
+
+function exportDocx() {
+  window.open(`/meetings/${props.meetingId}/transcript/export-docx`, '_blank');
+}
 
 /* UI helpers */
 function probBadge(p: number | string) {

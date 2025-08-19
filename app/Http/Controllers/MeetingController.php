@@ -8,7 +8,7 @@ use App\Models\Meeting;
 use App\Models\MeetingInfo;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-
+use App\Http\Resources\MeetingResource;
 class MeetingController extends Controller
 {
     /**
@@ -62,10 +62,12 @@ class MeetingController extends Controller
      */
     public function show(Request $request,Meeting $meeting)
     {
-        $meeting->load(['user', 'info']);
+        $meeting->load(['user', 'info','info.segments']);
+
+        $payload = (new MeetingResource($meeting))->toArray(request());
 
         return Inertia::render('meeting/Show', [
-            'meetings' => $meeting,
+            'meetings' => $payload,
             'authUser' => $request->user(),
         ]);
     }

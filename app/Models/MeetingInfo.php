@@ -14,16 +14,20 @@ class MeetingInfo extends Model
         'description',
         'meeting_id',
         'media_paths',
-        'transcript_json',
         'status'
+        ,'summaries'
     ];
 
     protected $casts = [
-        'transcript_json' => 'array',
+        'summaries' => 'string',
     ];
 
     public function meeting()
     {
         return $this->belongsTo(Meeting::class,'meeting_id');
+    }
+    public function segments()
+    {
+        return $this->hasMany(TranscriptSegments::class, 'meeting_info_id');
     }
 }
