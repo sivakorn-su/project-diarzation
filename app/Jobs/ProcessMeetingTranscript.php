@@ -63,7 +63,8 @@ class ProcessMeetingTranscript implements ShouldQueue
 
         // อัพโหลดไป HF space
         $client = new Guzzle();
-        $resp = $client->request('POST', 'https://520b969e6344.ngrok-free.app/upload_video/', [
+        $url = env('MODEL_TRANSCRIPTS', 'https://inwneon-project-voice-diarzation.hf.space/upload_video');
+        $resp = $client->request('POST', $url, [
             'multipart' => [[
                 'name' => 'file',
                 'contents' => fopen($tempPath, 'r'),
