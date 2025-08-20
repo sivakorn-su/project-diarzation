@@ -17,8 +17,8 @@ class ProcessMeetingTranscript implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 1;            // retry 3 รอบ
-    public int $timeout = 1200;       // 20 นาทีพอ (ตัดใจได้)
+    public int $tries = 1;            
+    public int $timeout = 3600;       
     public bool $failOnTimeout = true;
 
     public function __construct(public int $meetingInfoId) {}
@@ -65,7 +65,7 @@ class ProcessMeetingTranscript implements ShouldQueue
         }
 
         // อัพโหลดไป HF space
-        $client = new Guzzle(['timeout' => 300, 'allow_redirects' => false, 'http_errors' => false]);
+        $client = new Guzzle(['timeout' => 3600, 'read_timeout'    => 3600,'connect_timeout' => 30,'allow_redirects' => false, 'http_errors' => false]);
         $url = rtrim(env('MODEL_TRANSCRIPTS', 'https://inwneon-project-voice-diarzation.hf.space'), '/') . '/upload_video/';
 
         try {
@@ -91,11 +91,11 @@ class ProcessMeetingTranscript implements ShouldQueue
         DB::transaction(function () use ($meetingInfo, $result, $data) {
 
             // ล้างของเก่าก่อน (ถ้าอยาก keep เดิม เปลี่ยนเป็น upsert ด้านล่าง)
-            TranscriptSegment::where('meeting_info_id', $meetingInfo->id)->delete();
+            TranscriptSegments::where('meeting_info_id', $meetingInfo->id)->delete();
         
             // วนสร้างทีละ segment ด้วย Eloquent::create()
             foreach ($data as $i => $seg) {
-                TranscriptSegment::create([
+                TranscriptSegments::create([
                     'meeting_info_id'    => $meetingInfo->id,
                     'idx'                => $i,
                     'start'              => $seg['start'] ?? null,
