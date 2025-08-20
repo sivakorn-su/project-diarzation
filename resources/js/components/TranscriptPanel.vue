@@ -50,7 +50,6 @@
         Export
       </button>
     </div>
-
     <!-- Transcript list -->
     <div v-if="transcript_json?.data.length" class="space-y-2 overflow-y-auto max-h-[70vh] p-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
       <div
@@ -62,18 +61,30 @@
         ]"
         @click="jumpToTime(row.item.start)"
       >
+      <div>
+        
+      </div>
         <img src="/avatar-boy-svgrepo-com.svg" alt="Avatar" class="w-8 h-8 rounded-full object-cover" />
 
         <div class="flex-1 overflow-hidden">
-          <div class="flex items-start justify-between mb-2">
+          <div class="flex items-start justify-between mb-2 ">
             <p class="truncate">
               <strong>{{ row.item.speaker }}</strong> :
               {{ row.item.start }}s - {{ row.item.end }}s
             </p>
             <div class="flex items-center gap-2 flex-shrink-0">
-              <span v-if="row.item.avg_probability != null" :class="probBadge(row.item.avg_probability)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border">
+              <div class="flex items-center gap-1 text-xs text-gray-500">
+                <ShieldCheckIcon class="h-4 w-4"/>
+                <span v-if="row.item.confidence != null" :class="probBadge(row.item.confidence)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border">
+                {{ Math.round(Number(row.item.confidence) * 100) }}%
+              </span>
+              </div>
+              <div class="flex items-center gap-1 text-xs text-gray-500">
+                <LanguagesIcon class="h-4 w-4"/>
+                <span v-if="row.item.avg_probability != null" :class="probBadge(row.item.avg_probability)" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border">
                 {{ Math.round(Number(row.item.avg_probability) * 100) }}%
               </span>
+              </div>
               <div class="flex gap-1">
                 <button @click.stop="openEditModal(row.item)" class="text-gray-400 hover:text-blue-500">
                   <PencilIcon class="h-4 w-4" />
@@ -129,9 +140,18 @@
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2 ">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Edit Segment</h3>
-          <span v-if="editModel.avg_probability != null" :class="probBadge( editModel.avg_probability)" class="px-2.5 py-0.5 rounded-full text-xs font-medium border">
-                {{ Math.round(Number( editModel.avg_probability) * 100) }}%
-          </span>
+            <div class="flex items-center gap-1 text-xs text-gray-500">
+                <ShieldCheckIcon class="h-4 w-4"/>
+                <span v-if="editModel.confidence != null" :class="probBadge(editModel.confidence)" class="px-2.5 py-0.5 rounded-full text-xs font-medium border">
+                      {{ Math.round(Number(editModel.confidence) * 100) }}%
+                </span>
+            </div>
+            <div class="flex items-center gap-1 text-xs text-gray-500">
+              <LanguagesIcon class="h-4 w-4"/>  
+                <span v-if="editModel.avg_probability != null" :class="probBadge( editModel.avg_probability)" class="px-2.5 py-0.5 rounded-full text-xs font-medium border">
+                      {{ Math.round(Number( editModel.avg_probability) * 100) }}%
+                </span>
+            </div>
           </div>
           <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" @click="closeEditModal">✕</button>
         </div>
@@ -190,7 +210,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch, PropType, onMounted, onBeforeUnmount, watchEffect } from 'vue';
-import { RefreshCcw, FileUpIcon, PencilIcon, TrashIcon } from 'lucide-vue-next';
+import { RefreshCcw, FileUpIcon, PencilIcon, TrashIcon, LanguagesIcon, ShieldCheckIcon } from 'lucide-vue-next';
 import { useForm } from '@inertiajs/vue3';
 import Modal from '@/components/Modal.vue';
 import videojs from 'video.js';
@@ -216,6 +236,8 @@ const props = defineProps({
         avg_probability?: number | string;
         llm_corrected_text?: string;
         has_overlap?: boolean;
+        tag?: string;
+        confidence: number|string;
       }>;
       count_speaker?: Array<{ speaker: string; count: number | string }>;
       summaries?: string[];
@@ -302,6 +324,7 @@ type Seg = {
   text: string;
   avg_probability?: number | string;
   llm_corrected_text?: string;
+  confidence: number|string;
 };
 
 const masterTranscript = ref<Seg[]>([]);
@@ -343,6 +366,7 @@ const editModel = reactive<{
   filename: string;
   text: string;
   avg_probability?: string | number;
+  confidence?: string | number;
   llm_corrected_text?: string;
 }>({
   id: '',
@@ -352,7 +376,7 @@ const editModel = reactive<{
   filename: '',
   text: '',
   avg_probability: '',
-  llm_corrected_text: ''
+  llm_corrected_text: '',
 });
 
 function openEditModal(seg: Seg) {
@@ -361,6 +385,9 @@ function openEditModal(seg: Seg) {
   editModel.end = seg.end;
   editModel.speaker = seg.speaker;
   editModel.text = seg.text;
+  editModel.llm_corrected_text = seg.llm_corrected_text || '';
+  editModel.avg_probability = seg.avg_probability || '';
+  editModel.confidence = seg.confidence || '';
   editOpen.value = true;
 }
 function closeEditModal() { editOpen.value = false; }
@@ -377,7 +404,7 @@ async function saveEdit() {
   formEdit.text = editModel.text;
   console.log('Saving edit:',editModel.id);
   // PATCH /meetings/{meetingId}/transcript/segments/{id}
-  await formEdit.put(`/meetings/${props.meetingId}/transcript/segments/${editModel.id}`, {
+  await formEdit.patch(`/meetings/${props.meetingId}/transcript/segments/${editModel.id}`, {
     preserveScroll: true,
     onSuccess: () => {
       // optimistic update in local list

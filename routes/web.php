@@ -33,7 +33,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/meetings/{meeting}', [MeetingController::class, 'update'])->name('meetings.update');
 
     Route::prefix('meetings/{meeting}/transcript/segments')->group(function () {
-        Route::put('{segment}', [TranscriptSegmentsController::class, 'update']); // แก้ไขราย segment
+        Route::patch('{segment}', [TranscriptSegmentsController::class, 'update']); // แก้ไขราย segment
         Route::delete('{segment}', [TranscriptSegmentsController::class, 'destroy']); // ลบราย segment
     });
 

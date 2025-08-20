@@ -5,45 +5,153 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\Transcript;
 use App\Models\TranscriptSegments as TranscriptSegment;
-
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 class TranscriptSeeder extends Seeder
 {
     public function run(): void
     {
-    
-        // สร้าง transcripts ปลอม 5 อัน
-        for ($i = 1; $i <= 5; $i++) {
-            $t = Transcript::create([
-                'title'          => "Sample Transcript #{$i}",
-                'media_path'     => "https://example.com/media/sample{$i}.mp4",
-                'storage_driver' => 'public',
-                'status'         => fake()->randomElement(['pending', 'processing', 'done', 'failed']),
-                'transcript_json'=> null, // เวลาจริงจะเก็บ JSON เต็ม
-            ]);
-
-            // สุ่มจำนวน speaker
-            $speakers = collect(['SPEAKER_00','SPEAKER_01','SPEAKER_02'])->random(rand(1,3));
-
-            // สร้าง segments ปลอม 5–10 อัน
-            $numSegments = rand(5, 10);
-            $start = 0;
-            for ($j = 1; $j <= $numSegments; $j++) {
-                $dur = fake()->randomFloat(3, 2.0, 8.0); // ความยาว segment 2-8 วิ
-                $end = $start + $dur;
-
-                TranscriptSegment::create([
-                    'transcript_id'      => $t->id,
-                    'speaker'            => $speakers instanceof \Illuminate\Support\Collection ? $speakers->random() : $speakers,
-                    'filename'           => "segment_".str_pad($j,3,'0',STR_PAD_LEFT).".wav",
-                    'start'              => $start,
-                    'end'                => $end,
-                    'avg_probability'    => fake()->randomFloat(4, 0.7, 0.95),
-                    'text'               => fake()->sentence(12),
-                    'llm_corrected_text' => fake()->sentence(12),
-                ]);
-
-                $start = $end + fake()->randomFloat(3, 0.5, 2.0); // เว้นช่วง
-            }
-        }
+        DB::table('transcript_segments')->insert([
+            [
+                'id'                 => 8,
+                'meeting_info_id'    => 2,
+                'idx'                => 0,
+                'start'              => 0.008,
+                'end'                => 0.195,
+                'text'               => null,
+                'llm_corrected_text' => 'โปรดระบุข้อความที่ต้องการให้แก้ไข',
+                'speaker'            => 'SPEAKER_01',
+                'filename'           => 'segment_000_SPEAKER_01.wav',
+                'avg_probability'    => 0.0000,
+                'confidence'         => 0.111205,
+                'tag'                => 'remove',
+                'remove_reason'      => 'segment_duration<3.0s',
+                'has_overlap'        => 0,
+                'overlap_ratio'      => null,
+                'overlap_intervals'  => null,
+                'created_at'         => Carbon::parse('2025-08-21 04:39:35'),
+                'updated_at'         => Carbon::parse('2025-08-21 04:39:35'),
+            ],
+            [
+                'id'                 => 9,
+                'meeting_info_id'    => 2,
+                'idx'                => 1,
+                'start'              => 0.365,
+                'end'                => 35.000,
+                'text'               => 'มันทัดเจนวันธรบานชุดนีกับชุดที่แล้วไม่ให้ความสำคัญกับเรื่องแจ้งเตือนพายพี่บัตรเลยไม่เคยประชุมซักครั้งแล้วทุกคนรู้ไม่ครับว่าปัจทิษณ์เอกชนมีความพร้อมด้าน Sell บอด กัส ในฝั่งของเขาเสร็จกันตั้งนานแล้วแต่ที่เราช้าไม่มีระบบนิช้ายเพราะว่าความช้าจากภากรัฐเองทั้งๆที่เงินที่ภากรัฐใช้กับทุกวันนี้ก็เงินภาษีของประชาชนแต่ประชาชนกลับไม่ได้รับความปลอดภัยจากเงินภาษีที่เขาจ่ายกันไปมันน่าอายไหมครับที่คนที่เป็นถึงนายกของประเทศนี้ออกมาพูดถึงปัญหาแจ้งเตือนภัยพี่บาทว่าก็ไม่รู้ว่าต้องทำตัวยังไงแล้วสั่งการไปแล้วต้องทำตัวยังไงอีกนี่พูดทำของประเทศนะครับเราจะเห็นภาพโรงพยาบาล',
+                'llm_corrected_text' => 'มันชัดเจนว่าวันธรรมดาชุดนี้กับชุดที่แล้วไม่ให้ความสำคัญกับเรื่องแจ้งเตือนภัยพี่บัตรเลยไม่เคยประชุมสักครั้งแล้วทุกคนรู้ไหมครับว่าบริษัทเอกชนมีความพร้อมด้าน Sell บอร์ด กัส ในฝั่งของเขาเสร็จกันตั้งนานแล้วแต่ที่เราช้าไม่มีระบบนิสัยเพราะว่าความช้าจากภาครัฐเองทั้งๆ ที่เงินที่ภาครัฐใช้กับทุกวันนี้ก็เงินภาษีของประชาชนแต่ประชาชนกลับไม่ได้รับความปลอดภัยจากเงินภาษีที่เขาจ่ายกันไปมันน่าอายไหมครับที่คนที่เป็นถึงนายกของประเทศนี้ออกมาพูดถึงปัญหาแจ้งเตือนภัยพี่บาทว่าก็ไม่รู้ว่าต้องทำตัวยังไงแล้วสั่งการไปแล้วต้องทำตัวยังไงอีกนี่พูดถึงหัวของประเทศนะครับเราจะเห็นภาพโรงพยาบาล',
+                'speaker'            => 'SPEAKER_01',
+                'filename'           => 'segment_001_SPEAKER_01.wav',
+                'avg_probability'    => 0.8985,
+                'confidence'         => 0.63069855244575,
+                'tag'                => 'use',
+                'remove_reason'      => null,
+                'has_overlap'        => 0,
+                'overlap_ratio'      => null,
+                'overlap_intervals'  => null,
+                'created_at'         => Carbon::parse('2025-08-21 04:39:35'),
+                'updated_at'         => Carbon::parse('2025-08-21 04:39:35'),
+            ],
+            [
+                'id'                 => 10,
+                'meeting_info_id'    => 2,
+                'idx'                => 2,
+                'start'              => 35.000,
+                'end'                => 45.713,
+                'text'               => 'เย็นอาคารที่ร้าว ที่โรงพยาบาลแพร่มีปัญหาไม่มากนักโรงพยาบาลลำปางนี่หนักหน่อยถ้าดูในรูปตามข้าวต่างๆนี่จะเห็นร้าวเห็น',
+                'llm_corrected_text' => 'เย็นอากาศที่ร้อน ที่โรงพยาบาลแพร่มีปัญหาไม่มากนัก โรงพยาบาลลำปางนี่หนักหน่อย ถ้าดูในรูปตามข่าวต่างๆ นี่จะเห็นร้าวเห็น',
+                'speaker'            => 'SPEAKER_02',
+                'filename'           => 'segment_002_SPEAKER_02.wav',
+                'avg_probability'    => 0.8902,
+                'confidence'         => 0.58873967968678,
+                'tag'                => 'use',
+                'remove_reason'      => null,
+                'has_overlap'        => 0,
+                'overlap_ratio'      => null,
+                'overlap_intervals'  => null,
+                'created_at'         => Carbon::parse('2025-08-21 04:39:35'),
+                'updated_at'         => Carbon::parse('2025-08-21 04:39:35'),
+            ],
+            [
+                'id'                 => 11,
+                'meeting_info_id'    => 2,
+                'idx'                => 3,
+                'start'              => 46.019,
+                'end'                => 63.574,
+                'text'               => 'แตกอะไรเยอะแยะไปหมดคงต้องทบทวนกันว่าการกลัวสร้างอาคารใหม่ๆ ในโรงพยาบาลต่างๆมีการออกแบบที่จะเอาไว้รองรับเรื่องแผ่นดินไว้หรือไม่เราเห็นภาพหมอพยาบาลเจ้าหน้าที่ช่วยกันอบพยยบขนไข้ลงมาจากติ๊กอุ้มลงมาตามบันดายมาพาตัดกันอยู่ในล้าน',
+                'llm_corrected_text' => 'แตกอะไรเยอะแยะไปหมด คงต้องทบทวนกันว่าการก่อสร้างอาคารใหม่ๆ ในโรงพยาบาลต่างๆ มีการออกแบบที่จะเอาไว้รองรับเรื่องแผ่นดินไหวหรือไม่ เราเห็นภาพหมอ พยาบาล เจ้าหน้าที่ ช่วยกันอพยพ ขนไข้ลงมาจากตึก อุ้มลงมาตามบันได มาพาตัดกันอยู่ในลาน',
+                'speaker'            => 'SPEAKER_02',
+                'filename'           => 'segment_003_SPEAKER_02.wav',
+                'avg_probability'    => 0.8803,
+                'confidence'         => 0.60840623103844,
+                'tag'                => 'use',
+                'remove_reason'      => null,
+                'has_overlap'        => 0,
+                'overlap_ratio'      => null,
+                'overlap_intervals'  => null,
+                'created_at'         => Carbon::parse('2025-08-21 04:39:35'),
+                'updated_at'         => Carbon::parse('2025-08-21 04:39:35'),
+            ],
+            [
+                'id'                 => 12,
+                'meeting_info_id'    => 2,
+                'idx'                => 4,
+                'start'              => 63.761,
+                'end'                => 71.299,
+                'text'               => 'มาผ่าตัดคลอดลูกอยู่ด้านนอกห้องผ่าตัดคงต้องมีการทบทวนกันว่าการออกแบบตึกในโรงพยาบาลนี้มีการรองรับแผ่นดินไหวหรือมัน',
+                'llm_corrected_text' => 'มาผ่าตัดคลอดลูกอยู่ด้านนอกห้องผ่าตัด คงต้องมีการทบทวนกันว่าการออกแบบตึกในโรงพยาบาลนี้มีการรองรับแผ่นดินไหวหรือไม่',
+                'speaker'            => 'SPEAKER_02',
+                'filename'           => 'segment_004_SPEAKER_02.wav',
+                'avg_probability'    => 0.8991,
+                'confidence'         => 0.63336704047922,
+                'tag'                => 'use',
+                'remove_reason'      => null,
+                'has_overlap'        => 0,
+                'overlap_ratio'      => null,
+                'overlap_intervals'  => null,
+                'created_at'         => Carbon::parse('2025-08-21 04:39:35'),
+                'updated_at'         => Carbon::parse('2025-08-21 04:39:35'),
+            ],
+            [
+                'id'                 => 13,
+                'meeting_info_id'    => 2,
+                'idx'                => 5,
+                'start'              => 71.299,
+                'end'                => 90.450,
+                'text'               => 'วันนี้ครับเหตุการณ์เกิดขึ้นผมจะไม่โทษไหร่ คนใดคนนึงแต่ขอให้ประชาจนได้เข้าใจระบบม่าประมาณของประเภทธรรมทาญครับวันนี้หน่วยรับม่าประมาณเพื่อจะของ leagues พี่บาทย国มากในการซื้อระบบเตือนใภเพราะมีการมองว่าเป็นเรื่องอนาคตครับเป็น pareec会ซักง 거�異ี่ยังไม่เกิด',
+                'llm_corrected_text' => 'วันนี้ครับ เหตุการณ์เกิดขึ้น ผมจะไม่โทษใคร คนใดคนหนึ่ง แต่ขอให้ประชาชนได้เข้าใจระบบประมาณการของประเภทธรรมดาครับ วันนี้หน่วยรับประมาณการเพื่อจะขอ leagues จากบริษัทมากในการซื้อระบบเตือนภัย เพราะมีการมองว่าเป็นเรื่องอนาคตครับ เป็น project ที่ยังไม่เกิดขึ้น',
+                'speaker'            => 'SPEAKER_00',
+                'filename'           => 'segment_005_SPEAKER_00.wav',
+                'avg_probability'    => 0.8076,
+                'confidence'         => 0.63174693644629,
+                'tag'                => 'use',
+                'remove_reason'      => null,
+                'has_overlap'        => 0,
+                'overlap_ratio'      => null,
+                'overlap_intervals'  => null,
+                'created_at'         => Carbon::parse('2025-08-21 04:39:35'),
+                'updated_at'         => Carbon::parse('2025-08-21 04:39:35'),
+            ],
+            [
+                'id'                 => 14,
+                'meeting_info_id'    => 2,
+                'idx'                => 6,
+                'start'              => 71.367,
+                'end'                => 71.520,
+                'text'               => 'ว่า',
+                'llm_corrected_text' => 'ว่า',
+                'speaker'            => 'SPEAKER_02',
+                'filename'           => 'segment_006_SPEAKER_02.wav',
+                'avg_probability'    => 0.3729,
+                'confidence'         => 0.3609860867275,
+                'tag'                => 'remove',
+                'remove_reason'      => 'segment_duration<3.0s',
+                'has_overlap'        => 0,
+                'overlap_ratio'      => null,
+                'overlap_intervals'  => null,
+                'created_at'         => Carbon::parse('2025-08-21 04:39:35'),
+                'updated_at'         => Carbon::parse('2025-08-21 04:39:35'),
+            ],
+        ]);
     }
 }

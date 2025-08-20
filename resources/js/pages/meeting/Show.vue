@@ -31,7 +31,7 @@ const props = defineProps<{
       audio_path: string;
       audio_length: number;
       transcript_json: {
-        data: { start: number|string; end: number|string; speaker: string; filename: string; text: string; avg_probability: number|string; llm_corrected_text: string; }[];
+        data: { start: number|string; end: number|string; speaker: string; filename: string; text: string; avg_probability: number|string; llm_corrected_text: string; confidence: number|string; has_overlap?: boolean; tag?: string; }[];
         count_speaker: { speaker: string; count: number|string }[];
         summaries: string[]|string;
         video_path: string;
