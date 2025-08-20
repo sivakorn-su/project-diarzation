@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('meeting_infos', function (Blueprint $table) {
-            $table->text('summaries')->nullable()->after('media_paths');
+            if (Schema::hasColumn('meeting_infos', 'summaries')) {
+                $table->dropColumn('summaries');
+            }
         });
     }
 
@@ -22,7 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('meeting_infos', function (Blueprint $table) {
-            $table->dropColumn('summaries');
+            $table->json('summaries')->nullable();
         });
     }
 };

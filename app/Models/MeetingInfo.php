@@ -19,7 +19,7 @@ class MeetingInfo extends Model
     ];
 
     protected $casts = [
-        'summaries' => 'string',
+        'summaries' => 'array',
     ];
 
     public function meeting()

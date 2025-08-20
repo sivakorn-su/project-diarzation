@@ -52,7 +52,7 @@
     </div>
 
     <!-- Transcript list -->
-    <div v-if="transcript_json" class="space-y-2 overflow-y-auto max-h-[70vh] p-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+    <div v-if="transcript_json?.data.length" class="space-y-2 overflow-y-auto max-h-[70vh] p-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
       <div
         v-for="row in displayList"
         :key="`${row.item.id}`"
@@ -437,7 +437,9 @@ function onSelectSpeaker(e: Event) {
 }
 
 const reTranscript = () => {
-  loading.value = true; error.value = null; success.value = false;
+  loading.value = true; 
+  error.value = null; 
+  success.value = false;
   form.post(`/meetings/${props.meetingId}/transcript`, {
     preserveScroll: true,
     onSuccess: () => { success.value = true; },
