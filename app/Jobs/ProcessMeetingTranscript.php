@@ -17,8 +17,9 @@ class ProcessMeetingTranscript implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;            // retry 3 รอบ
+    public int $tries = 1;            // retry 3 รอบ
     public int $timeout = 1200;       // 20 นาทีพอ (ตัดใจได้)
+    public bool $failOnTimeout = true;
 
     public function __construct(public int $meetingInfoId) {}
 
@@ -28,7 +29,7 @@ class ProcessMeetingTranscript implements ShouldQueue
         return [ new WithoutOverlapping("meeting-transcript:{$this->meetingInfoId}") ];
     }
 
-    public function backoff(): array { return [5, 15, 60]; }
+    // public function backoff(): array { return [5, 15, 60]; }
 
     public function handle(): void
     {
@@ -64,18 +65,20 @@ class ProcessMeetingTranscript implements ShouldQueue
         }
 
         // อัพโหลดไป HF space
-        $client = new Guzzle();
-        $url = env('MODEL_TRANSCRIPTS', 'https://inwneon-project-voice-diarzation.hf.space/upload_video/');
-        $resp = $client->request('POST', $url, [
-            'multipart' => [[
-                'name' => 'file',
-                'contents' => fopen($tempPath, 'r'),
-                'filename' => $filename,
-            ]],
-            'timeout' => 300,
-        ]);
+        $client = new Guzzle(['timeout' => 300, 'allow_redirects' => false, 'http_errors' => false]);
+        $url = rtrim(env('MODEL_TRANSCRIPTS', 'https://inwneon-project-voice-diarzation.hf.space'), '/') . '/upload_video/';
 
-        @unlink($tempPath);
+        try {
+            $resp = $client->request('POST', $url, [
+                'multipart' => [[
+                    'name'     => 'file',
+                    'contents' => fopen($tempPath, 'r'),
+                    'filename' => $filename,
+                ]],
+            ]);
+        } finally {
+            @unlink($tempPath);
+        }
 
         $result = json_decode((string)$resp->getBody(), true);
         if (!isset($result['data']) || !is_array($result['data']) || !count($result['data'])) {
