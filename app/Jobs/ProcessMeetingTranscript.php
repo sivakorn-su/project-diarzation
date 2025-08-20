@@ -65,7 +65,7 @@ class ProcessMeetingTranscript implements ShouldQueue
 
         // อัพโหลดไป HF space
         $client = new Guzzle();
-        $url = env('MODEL_TRANSCRIPTS', 'https://inwneon-project-voice-diarzation.hf.space/upload_video');
+        $url = env('MODEL_TRANSCRIPTS', 'https://inwneon-project-voice-diarzation.hf.space/upload_video/');
         $resp = $client->request('POST', $url, [
             'multipart' => [[
                 'name' => 'file',
@@ -102,6 +102,12 @@ class ProcessMeetingTranscript implements ShouldQueue
                     'speaker'            => $seg['speaker'] ?? null,
                     'filename'           => $seg['filename'] ?? null,
                     'avg_probability'    => $seg['avg_probability'] ?? null,
+                    'confidence'         => $seg['confidence'] ?? null,
+                    'tag'                => $seg['tag'] ?? null,
+                    'remove_reason'      => $seg['remove_reason'] ?? null,
+                    'has_overlap'        => $seg['has_overlap'] ?? false,
+                    'overlap_ratio'      => $seg['overlap_ratio'] ?? null,
+                    'overlap_intervals'  => $seg['overlap_intervals'] ?? null,
                 ]);
             }
             $meetingInfo->update([
