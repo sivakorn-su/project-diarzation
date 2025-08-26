@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('transcript', function (Blueprint $table) {
-            //
+        Schema::table('transcript_segments', function (Blueprint $table) {
+            $table->json('overlap_detail')->nullable()->after('tag');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('transcript', function (Blueprint $table) {
-            //
+        Schema::table('transcript_segments', function (Blueprint $table) {
+            $table->json('overlap_detail')->nullable();
         });
     }
 };
