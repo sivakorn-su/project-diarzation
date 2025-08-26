@@ -19,10 +19,12 @@ class TranscriptSegments extends Model
         'avg_probability',
         'confidence',
         'tag',
+        'is_remove',
         'remove_reason',
         'has_overlap',
         'overlap_ratio',
         'overlap_intervals',
+        'overlap_detail'
     ];
 
     protected $casts = [
@@ -33,6 +35,9 @@ class TranscriptSegments extends Model
         'has_overlap'       => 'boolean',
         'overlap_ratio'     => 'float',
         'overlap_intervals' => 'array',
+        'is_remove'         => 'boolean',
+        'overlap_detail'    => 'array',
+        'remove_reason'     => 'string',
     ];
 
     public function meetingInfo() {

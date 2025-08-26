@@ -244,7 +244,7 @@ const closeSpeakerModal = () => speakerModalOpen.value = false;
             </div>
             <div>
               <p class="text-sm text-gray-500 dark:text-gray-400">Total Speakers</p>
-              <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ totalSpeakers }}</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ meeting.info?.transcript_json.num_speakers }}</p>
             </div>
           </div>
 
@@ -255,7 +255,7 @@ const closeSpeakerModal = () => speakerModalOpen.value = false;
             </div>
             <div>
               <p class="text-sm text-gray-500 dark:text-gray-400">Total Segments</p>
-              <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ totalSegments }}</p>
+              <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ meeting.info?.transcript_json.total_sentence }}</p>
             </div>
           </div>
 

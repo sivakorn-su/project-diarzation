@@ -22,7 +22,8 @@ class MeetingResource extends JsonResource
                 'filename'           => $s->filename,
                 'confidence'         => is_null($s->confidence) ? null : (float) $s->confidence,
                 'tag'                => $s->tag,
-                'remove_reason'      => $s->remove_reason,
+                'is_remove'          => is_null((bool) $s->is_remove,) ? true : (bool) $s->is_remove,
+                'remove_reason'      => is_null($s->remove_reason) ? null : $s->remove_reason,
                 'has_overlap'        => (bool) $s->has_overlap,
                 'overlap_ratio'      => is_null($s->overlap_ratio) ? null : (float) $s->overlap_ratio,
                 'overlap_intervals'  => is_null($s->overlap_intervals) ? null : (array) $s->overlap_intervals,
@@ -38,13 +39,14 @@ class MeetingResource extends JsonResource
         // helper ลบคีย์ที่เป็น null ออก (อยากมินิมอล)
         $stripNulls = fn (array $a) => array_filter($a, fn($v) => !is_null($v));
 
-        // สรุป (คำนวณก็ต่อเมื่อมี segments)
+        $validSegments = $segments->where('is_remove', false);
+        
         $audioLength   = $hasSeg ? (float) ($segments->max('end') ?? 0) : null;
-        $speakersCol   = $hasSeg ? $segments->pluck('speaker')->filter()->unique()->values() : collect();
+        $speakersCol   = $hasSeg ? $validSegments->pluck('speaker')->filter()->unique()->values() : collect();
         $numSpeakers   = $hasSeg ? $speakersCol->count() : null;
-        $totalSentence = $hasSeg ? $segments->count() : null;
+        $totalSentence = $hasSeg ? $validSegments->count() : null;
         $countSpeaker  = $hasSeg
-            ? $segments->groupBy('speaker')->map(fn($g) => [
+            ? $validSegments->groupBy('speaker')->map(fn($g) => [
                 'speaker' => $g->first()->speaker,
                 'count'   => $g->count(),
               ])->values()->all()

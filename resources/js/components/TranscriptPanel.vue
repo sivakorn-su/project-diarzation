@@ -57,7 +57,8 @@
         :key="`${row.item.id}`"
         :class="[
           'group rounded-xl border p-4 shadow-sm flex items-start gap-3 cursor-pointer bg-white dark:bg-gray-900 hover:bg-slate-50 dark:hover:bg-gray-800 transition',
-          isCurrent(row.item) ? 'ring-1 ring-sky-500/40 border-sky-300 dark:border-sky-700' : 'border-gray-200 dark:border-gray-700'
+          isCurrent(row.item) ? 'ring-1 ring-sky-500/40 border-sky-300 dark:border-sky-700' : 'border-gray-200 dark:border-gray-700',
+          row.item.is_remove ? 'opacity-25' : ''
         ]"
         @click="jumpToTime(row.item.start)"
       >
@@ -85,7 +86,10 @@
                 {{ Math.round(Number(row.item.avg_probability) * 100) }}%
               </span>
               </div>
-              <div class="flex gap-1">
+              <div class="flex gap-2 ">
+                <button @click.stop="openInfoModal(row.item)" class="text-gray-400 hover:text-gray-600">
+                  <InfoIcon class="h-4 w-4" />
+                </button>
                 <button @click.stop="openEditModal(row.item)" class="text-gray-400 hover:text-blue-500">
                   <PencilIcon class="h-4 w-4" />
                 </button>
@@ -132,6 +136,92 @@
       </transition>
     </div>
   </div>
+  <!-- Info Modal -->
+  <Modal v-if="infoOpen" @close="closeInfoModal">
+    <template #body>
+      <div class="relative w-full max-w-[720px] mx-auto rounded-2xl bg-white dark:bg-gray-900 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2 ">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Info Segment</h3>
+            <div class="flex items-center gap-1 text-xs text-gray-500">
+                <ShieldCheckIcon class="h-4 w-4"/>
+                <span v-if="infoModel.confidence != null" :class="probBadge(infoModel.confidence)" class="px-2.5 py-0.5 rounded-full text-xs font-medium border">
+                      {{ Math.round(Number(infoModel.confidence) * 100) }}%
+                </span>
+            </div>
+            <div class="flex items-center gap-1 text-xs text-gray-500">
+              <LanguagesIcon class="h-4 w-4"/>  
+                <span v-if="infoModel.avg_probability != null" :class="probBadge( infoModel.avg_probability)" class="px-2.5 py-0.5 rounded-full text-xs font-medium border">
+                      {{ Math.round(Number( infoModel.avg_probability) * 100) }}%
+                </span>
+            </div>
+            
+          </div>
+          <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" @click="closeInfoModal">✕</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <p class="text-xs text-blue-500">Speaker</p>
+            <div class="mt-1 w-full rounded border px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700">
+              {{ infoModel.speaker ?? '-' }}
+            </div>
+          </div>
+
+          <!-- Start / End -->
+          <div class="flex flex-col md:flex-row gap-3">
+            <div class="flex-1">
+              <p class="text-xs text-blue-500">Start (s)</p>
+              <div class="mt-1 w-full rounded border px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700">
+                {{ Number(infoModel.start ?? 0).toFixed(2) }}
+              </div>
+            </div>
+            <div class="flex-1">
+              <p class="text-xs text-blue-500">End (s)</p>
+              <div class="mt-1 w-full rounded border px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700">
+                {{ Number(infoModel.end ?? 0).toFixed(2) }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Hide toggle (ยังเป็นสวิตช์ได้อยู่) -->
+          <!-- <div class="md:col-span-2 flex items-center gap-3">
+            <label class="text-xs text-red-500">Hide</label>
+            <label class="inline-flex items-center cursor-pointer select-none">
+              <input type="checkbox" v-model="infoModel.is_remove" class="peer sr-only" />
+              <div
+                class="relative h-6 w-11 rounded-full bg-gray-300 transition-colors
+                      peer-checked:bg-red-500
+                      after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5
+                      after:rounded-full after:bg-white after:shadow
+                      after:transition-transform
+                      peer-checked:after:translate-x-5"
+              ></div>
+              <span class="ml-2 text-sm text-gray-700 dark:text-gray-200">
+                {{ infoModel.is_remove ? 'Hidden' : 'Visible' }}
+              </span>
+            </label>
+          </div> -->
+
+          <!-- LLM Suggested (readonly) -->
+          <div class="md:col-span-2">
+            <p class="text-sm text-emerald-500">LLM Suggested</p>
+            <div class="mt-1 w-full rounded  px-3 py-2 text-sm bg-green-50 dark:bg-green-900/20  min-h-20 border border-green-500 dark:border-green-700">
+              {{ infoModel.llm_corrected_text || '—' }}
+            </div>
+          </div>
+
+          <!-- Text (readonly) -->
+          <div class="md:col-span-2">
+            <p class="text-xs text-blue-500">Text</p>
+            <div class="mt-1 w-full rounded border px-3 py-2 text-sm bg-sky-50 dark:bg-sky-900/20 border-sky-500 min-h-24 whitespace-pre-wrap">
+              {{ infoModel.text || '—' }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+  </Modal>
 
   <!-- Edit Modal -->
   <Modal v-if="editOpen" @close="closeEditModal">
@@ -170,6 +260,25 @@
             <label class="text-xs text-blue-500">End (s)</label>
             <input v-model="editModel.end" type="number" step="0.01" class="mt-1 w-full rounded border px-3 py-2 text-sm bg-sky-50 border-sky-500" />
           </div>
+          </div>
+          <div class="md:col-span-2 flex items-start gap-2 flex-col">
+            <label class="text-xs text-red-500">Hide</label>
+            <label class="inline-flex items-center cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  v-model="editModel.is_remove"
+                  class="peer sr-only"
+                />
+                <div
+                  class="relative h-6 w-11 rounded-full bg-gray-300 transition-colors
+                        peer-checked:bg-red-500
+                        after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5
+                        after:rounded-full after:bg-white after:shadow
+                        after:transition-transform
+                        peer-checked:after:translate-x-5"
+                >
+              </div>
+          </label>
           </div>
           <div class="md:col-span-2">
             <label class="text-xs text-green-500">LLM Suggested</label>
@@ -210,7 +319,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch, PropType, onMounted, onBeforeUnmount, watchEffect } from 'vue';
-import { RefreshCcw, FileUpIcon, PencilIcon, TrashIcon, LanguagesIcon, ShieldCheckIcon } from 'lucide-vue-next';
+import { RefreshCcw, FileUpIcon, PencilIcon, TrashIcon, LanguagesIcon, ShieldCheckIcon, InfoIcon } from 'lucide-vue-next';
 import { useForm } from '@inertiajs/vue3';
 import Modal from '@/components/Modal.vue';
 import videojs from 'video.js';
@@ -238,6 +347,7 @@ const props = defineProps({
         has_overlap?: boolean;
         tag?: string;
         confidence: number|string;
+        is_remove?: boolean;
       }>;
       count_speaker?: Array<{ speaker: string; count: number | string }>;
       summaries?: string[];
@@ -325,6 +435,7 @@ type Seg = {
   avg_probability?: number | string;
   llm_corrected_text?: string;
   confidence: number|string;
+  is_remove?: boolean;
 };
 
 const masterTranscript = ref<Seg[]>([]);
@@ -358,6 +469,32 @@ const displayList = computed(() => {
 
 /* ===== Edit in Modal (PATCH per segment) ===== */
 const editOpen = ref(false);
+const infoOpen = ref(false);
+
+const infoModel = reactive<{
+  id: string;
+  start: string | number;
+  end: string | number;
+  speaker: string;
+  filename: string;
+  text: string;
+  avg_probability?: string | number;
+  confidence?: string | number;
+  llm_corrected_text?: string;
+  is_remove?: boolean;
+}>({
+  id: '',
+  start: '',
+  end: '',
+  speaker: '',
+  filename: '',
+  text: '',
+  avg_probability: '',
+  llm_corrected_text: '',
+  confidence:'',
+  is_remove: false,
+});
+
 const editModel = reactive<{
   id: string;
   start: string | number;
@@ -368,6 +505,7 @@ const editModel = reactive<{
   avg_probability?: string | number;
   confidence?: string | number;
   llm_corrected_text?: string;
+  is_remove?: boolean;
 }>({
   id: '',
   start: '',
@@ -377,6 +515,8 @@ const editModel = reactive<{
   text: '',
   avg_probability: '',
   llm_corrected_text: '',
+  confidence:'',
+  is_remove: false,
 });
 
 function openEditModal(seg: Seg) {
@@ -388,12 +528,35 @@ function openEditModal(seg: Seg) {
   editModel.llm_corrected_text = seg.llm_corrected_text || '';
   editModel.avg_probability = seg.avg_probability || '';
   editModel.confidence = seg.confidence || '';
+  editModel.is_remove = seg.is_remove || false;
   editOpen.value = true;
 }
-function closeEditModal() { editOpen.value = false; }
 
-const formEdit = useForm({
-  start: '', end: '', speaker: '', filename: '', text: ''
+function openInfoModal(seg: Seg) {
+  infoModel.id = seg.id;
+  infoModel.start = seg.start;
+  infoModel.end = seg.end;
+  infoModel.speaker = seg.speaker;
+  infoModel.text = seg.text;
+  infoModel.llm_corrected_text = seg.llm_corrected_text || '';
+  infoModel.avg_probability = seg.avg_probability || '';
+  infoModel.confidence = seg.confidence || '';
+  infoModel.is_remove = seg.is_remove || false;
+  infoOpen.value = true;
+}
+
+function closeEditModal() { editOpen.value = false; }
+function closeInfoModal() { infoOpen.value = false; }
+
+const formEdit = useForm<{
+  start: string;
+  end: string;
+  speaker: string;
+  filename: string;
+  text: string;
+  is_remove: boolean;
+}>({
+  start: '', end: '', speaker: '', filename: '', text: '', is_remove: false,
 });
 
 async function saveEdit() {
@@ -402,7 +565,8 @@ async function saveEdit() {
   formEdit.end = String(editModel.end);
   formEdit.speaker = editModel.speaker;
   formEdit.text = editModel.text;
-  console.log('Saving edit:',editModel.id);
+  formEdit.is_remove = editModel.is_remove || false;
+
   // PATCH /meetings/{meetingId}/transcript/segments/{id}
   await formEdit.patch(`/meetings/${props.meetingId}/transcript/segments/${editModel.id}`, {
     preserveScroll: true,

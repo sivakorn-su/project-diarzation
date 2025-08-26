@@ -59,6 +59,7 @@ class TranscriptSegmentsController extends Controller
             'end' => 'required',
             'speaker' => 'required|string',
             'text' => 'required|string',
+            'is_remove' => 'nullable|boolean',
         ]);
 
         $segment->update($data);

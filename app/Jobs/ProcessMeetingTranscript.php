@@ -107,6 +107,7 @@ class ProcessMeetingTranscript implements ShouldQueue
                     'avg_probability'    => $seg['avg_probability'] ?? null,
                     'confidence'         => $seg['confidence'] ?? null,
                     'tag'                => $seg['tag'] ?? null,
+                    'is_remove'          => $seg['is_remove'] ?? false,
                     'remove_reason'      => $seg['remove_reason'] ?? null,
                     'has_overlap'        => $seg['has_overlap'] ?? false,
                     'overlap_ratio'      => $seg['overlap_ratio'] ?? null,

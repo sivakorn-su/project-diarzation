@@ -7,6 +7,7 @@ use App\Http\Controllers\TranscriptSegmentsController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Jobs\TestLogJob;
+use App\Jobs\MigrateTagStringToBooleanJob;
 
 Route::get('/', function () {
     return Inertia::render('auth/Login');
@@ -79,6 +80,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/queue-test', function () {
         TestLogJob::dispatch();
         return 'Job dispatched!';
+    });
+    Route::get('/migrate-tags', function () {
+        MigrateTagStringToBooleanJob::dispatch();
+        return "Job dispatched!";
     });
 });
 
