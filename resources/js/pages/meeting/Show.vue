@@ -3,8 +3,8 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
-import { 
-  Lightbulb, ListOrderedIcon, ListFilterIcon, FileUpIcon, Loader, 
+import {
+  Lightbulb, ListOrderedIcon, ListFilterIcon, FileUpIcon, Loader,
   PlayCircle, UserRound, Mail, Calendar, Clock, Film, CheckCircle2, XCircle,
   UploadCloud, X, AlertCircle, Music, Users, PieChart,
   ClipboardListIcon,
@@ -213,7 +213,7 @@ const closeSpeakerModal = () => speakerModalOpen.value = false;
           <p class="leading-relaxed">{{ meeting.info?.description || '-' }}</p>
         </div>
       </div>
-     
+
       <!-- Quick Stats -->
       <div v-if="hasTranscript" class="rounded-xl border border-gray-200 dark:border-gray-800 p-5 bg-white dark:bg-gray-950">
         <div class="mb-4 flex items-center justify-between">
@@ -261,7 +261,7 @@ const closeSpeakerModal = () => speakerModalOpen.value = false;
 
           <!-- Speaker Distribution (mini) -->
           <div
-            class="bg-sky-50 rounded-xl border border-sky-200 p-4 cursor-pointer
+            class="bg-sky-50 dark:bg-gray-900 rounded-xl border border-sky-200 dark:border-sky-800 p-4 cursor-pointer
                     hover:bg-sky-100 transition shadow-sm hover:shadow
                     focus:outline-none focus:ring-2 focus:ring-sky-300"
             role="button"
@@ -287,7 +287,7 @@ const closeSpeakerModal = () => speakerModalOpen.value = false;
                     <span class="font-medium text-sky-800 truncate">{{ d.speaker }}</span>
                     <span class="text-sky-600">{{ d.percent }}%</span>
                 </div>
-                <div class="w-full h-2 rounded-full bg-white overflow-hidden">
+                <div class="w-full h-2 rounded-full bg-white dark:bg-gray-800 overflow-hidden">
                     <div
                     class="h-2 rounded-full bg-sky-500 transition-all"
                     :style="{ width: `${d.percent}%` }"
@@ -351,13 +351,13 @@ const closeSpeakerModal = () => speakerModalOpen.value = false;
             <span class="text-red-500 text-sm">*</span>
           </div>
 
-          <div 
+          <div
             @dragover="handleDragOver" @dragleave="handleDragLeave" @drop="handleDrop" @click="openFileDialog"
             :class="[
               'relative border-2 border-dashed rounded-2xl p-8 cursor-pointer transition-all duration-200',
-              isDragOver 
-                ? 'border-sky-400 bg-sky-50 dark:bg-sky-900/20' 
-                : form.video 
+              isDragOver
+                ? 'border-sky-400 bg-sky-50 dark:bg-sky-900/20'
+                : form.video
                   ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-900/20'
                   : 'border-gray-300 dark:border-gray-600 hover:border-sky-300 hover:bg-sky-50/50 dark:hover:bg-sky-900/10',
               form.errors.video && 'border-red-300 bg-red-50 dark:bg-red-900/20'
@@ -433,7 +433,7 @@ const closeSpeakerModal = () => speakerModalOpen.value = false;
                 : 'Key points and highlights from the meeting' }}
             </p>
             </div>
-          
+
           <div class="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
             <button type="button" @click="showFullView = true"
               :class="['px-3 py-1.5 text-sm transition',

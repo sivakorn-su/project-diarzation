@@ -54,7 +54,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Route::delete('/transcripts/{transcript}/segments/{segment}', [TranscriptSegmentController::class, 'destroy'])
     // ->name('segments.destroy');
-    
+
     // Upload media page for meeting info
     Route::get('/meeting/{meeting}/upload-media', function ($meeting) {
         return Inertia::render('meeting/UploadMedia', [
@@ -69,6 +69,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/status', function () {
         return Inertia::render('Status');
     })->name('status');
+
+    Route::get('/ocr', function () {
+        return Inertia::render('ImageToText');
+    })->name('ocr');
+
     Route::get('/check-upload-limit', function () {
         return [
             'upload_max_filesize' => ini_get('upload_max_filesize'),
