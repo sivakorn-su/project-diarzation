@@ -153,6 +153,89 @@
           />
           <pre v-if="showJson" class="w-full overflow-auto rounded-lg border px-3 py-2 text-xs bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800">{{ rawJson }}</pre>
         </div>
+        <!-- === Together AI Actions === -->
+<div class="mt-6 border rounded-xl">
+  <div class="px-4 py-2 border-b text-sm font-semibold text-gray-700 dark:text-gray-200 dark:border-gray-800">
+    สุ่มรายชื่อผู้โชคดี
+  </div>
+
+  <div class="p-4 space-y-3">
+    <div v-if="!togetherApiKey" class="flex flex-wrap gap-2">
+      <input
+        v-model="togetherApiKey"
+        :type="togetherShowKey ? 'text' : 'password'"
+        placeholder="TOGETHER_API_KEY (หรือใส่ใน VITE_TOGETHER_API_KEY)"
+        class="min-w-[260px] rounded-lg border px-3 py-2 text-sm bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+      />
+      <button
+        type="button"
+        @click="togetherShowKey = !togetherShowKey"
+        class="px-3 py-2 text-sm rounded-lg border bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
+      >
+        {{ togetherShowKey ? 'Hide' : 'Show' }}
+      </button>
+
+      <select
+        v-model="togetherModel"
+        class="rounded-lg border px-3 py-2 text-sm bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+        title="Together Model"
+      >
+        <option value="openai/gpt-oss-20b">openai/gpt-oss-20b</option>
+        <!-- ใส่รุ่นอื่นที่คุณมีสิทธิ์ใช้ได้ตามต้องการ -->
+      </select>
+    </div>
+
+    <div v-if="!togetherApiKey">
+      <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Prompt</label>
+      <input
+        v-model="togetherPrompt"
+        class="w-full rounded-lg border px-3 py-2 text-sm bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-400"
+        placeholder="อธิบาย/สรุปรายชื่อ 3 คนที่สุ่มได้เป็นภาษาไทยแบบสั้น ๆ"
+      />
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        @click="randomPickThree"
+        :disabled="!resultText"
+        class="inline-flex items-center gap-2 rounded-md px-3 py-2 text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400"
+      >
+        สุ่ม 3 รายชื่อจากผลลัพธ์
+      </button>
+
+      <div class="flex flex-wrap gap-2">
+        <div v-for="(n, i) in pickedNames" :key="i"
+              class="px-2 py-1 text-md rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
+          {{ n }}
+      </div>
+      </div>
+
+      <!-- <button
+        type="button"
+        @click="sendToTogether"
+        :disabled="!togetherApiKey || pickedNames.length !== 3 || togetherLoading"
+        class="ml-auto inline-flex items-center gap-2 rounded-md px-3 py-2 text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400"
+      >
+        {{ togetherLoading ? 'กำลังส่ง...' : 'ส่งไป Together AI' }}
+      </button> -->
+    </div>
+
+    <div v-if="togetherError" class="text-sm text-red-600 dark:text-red-400">
+      {{ togetherError }}
+    </div>
+
+    <div v-if="togetherResponse" class="mt-2">
+      <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-200">Together Response</label>
+      <textarea
+        class="w-full min-h-[160px] rounded-lg border px-3 py-2 text-sm bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700"
+        :value="togetherResponse"
+        readonly
+      />
+    </div>
+  </div>
+</div>
+
       </div>
     </AppLayout>
   </template>
@@ -356,4 +439,102 @@
   }
 
   onMounted(() => {})
+
+  // === Together AI state ===
+const togetherApiKey = ref<string>(import.meta.env.VITE_TOGETHER_API_KEY || '')
+const togetherShowKey = ref<boolean>(false)
+const togetherModel = ref<string>('openai/gpt-oss-20b')
+const togetherPrompt = ref<string>('สรุป/อธิบายรายชื่อ 3 คนที่สุ่มได้แบบ bullet list ภาษาไทย สั้น กระชับ')
+
+const pickedNames = ref<string[]>([])
+const togetherLoading = ref<boolean>(false)
+const togetherError = ref<string | null>(null)
+const togetherResponse = ref<string>('')
+
+// ดึงชื่อจาก resultText: ตัดตามบรรทัด, กรองว่าง, เดดู้พ์, เอาที่มีตัวอักษรจริง ๆ
+function parseNamesFromText(text: string): string[] {
+  return Array.from(
+    new Set(
+      text
+        .split(/\r?\n/)
+        .map(s => s.trim())
+        .filter(s => s.length > 0)
+        // กรองบรรทัดที่ดู “เป็นชื่อ” แบบหยาบ ๆ (มีตัวอักษร/ไทย/ช่องว่าง)
+        .filter(s => /[A-Za-zก-๙]/.test(s))
+        // ตัดกรณีเป็นหัวข้อ Page/--- ออก
+        .filter(s => !/^---/.test(s))
+    )
+  ).slice(0, 500) // กันยาวเกิน
+}
+
+function randomPickThree() {
+  pickedNames.value = []
+  const names = parseNamesFromText(resultText.value || '')
+  if (names.length < 3) {
+    togetherError.value = `รายชื่อไม่พอ (${names.length}) ในผลลัพธ์`
+    return
+  }
+  togetherError.value = null
+  // สุ่มไม่ซ้ำ 3 รายชื่อ
+  const seen = new Set<number>()
+  while (pickedNames.value.length < 3) {
+    const idx = Math.floor(Math.random() * names.length)
+    if (!seen.has(idx)) {
+      seen.add(idx)
+      pickedNames.value.push(names[idx])
+    }
+  }
+}
+
+async function sendToTogether() {
+  togetherError.value = null
+  togetherResponse.value = ''
+  if (!togetherApiKey.value) {
+    togetherError.value = 'กรุณาใส่ TOGETHER_API_KEY'
+    return
+  }
+  if (pickedNames.value.length !== 3) {
+    togetherError.value = 'ต้องสุ่มให้ได้ครบ 3 คนก่อน'
+    return
+  }
+
+  togetherLoading.value = true
+  try {
+    // === ส่งตรงไป Together REST (ระวังเรื่อง CORS/การเปิดเผยคีย์) ===
+    const body = {
+      model: togetherModel.value,
+      messages: [
+        { role: 'system', content: 'You are a helpful assistant. Reply in Thai.' },
+        {
+          role: 'user',
+          content:
+            `${togetherPrompt.value}\n\nรายชื่อ:\n- ${pickedNames.value[0]}\n- ${pickedNames.value[1]}\n- ${pickedNames.value[2]}`
+        }
+      ]
+    }
+
+    const res = await fetch('https://api.together.xyz/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${togetherApiKey.value}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    })
+
+    const data = await res.json().catch(() => null)
+    if (!res.ok) {
+      const msg = data?.error?.message || data?.detail || JSON.stringify(data)
+      throw new Error(msg || `HTTP ${res.status}`)
+    }
+
+    // รูปแบบปกติ: choices[0].message.content
+    togetherResponse.value = data?.choices?.[0]?.message?.content || JSON.stringify(data, null, 2)
+  } catch (e: any) {
+    togetherError.value = e?.message || 'เรียก Together ไม่สำเร็จ'
+  } finally {
+    togetherLoading.value = false
+  }
+}
+
   </script>
