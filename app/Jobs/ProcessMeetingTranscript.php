@@ -1,71 +1,101 @@
 <?php
+
 namespace App\Jobs;
 
 use App\Models\MeetingInfo;
-use GuzzleHttp\Client as Guzzle;
+use App\Models\TranscriptSegments;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
-use App\Models\TranscriptSegments;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use GuzzleHttp\Client as Guzzle;
 
 class ProcessMeetingTranscript implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 1;            
-    public int $timeout = 3600;       
+    public int $tries = 1;
+    public int $timeout = 3600;   // 1 ชม.
     public bool $failOnTimeout = true;
 
     public function __construct(public int $meetingInfoId) {}
 
     public function middleware(): array
     {
-        // กันซ้อนงานตัวเดียวกัน
         return [ new WithoutOverlapping("meeting-transcript:{$this->meetingInfoId}") ];
     }
-
-    // public function backoff(): array { return [5, 15, 60]; }
 
     public function handle(): void
     {
         $meetingInfo = MeetingInfo::findOrFail($this->meetingInfoId);
-        if (!$meetingInfo->media_paths) {
-            throw new \RuntimeException('No media file found.');
-        }
 
-        $mediaUrl = $meetingInfo->media_paths;
+        // ✅ เลือกแหล่งดาวน์โหลด: key ก่อน, ถ้าไม่มีค่อย fallback ไป URL
+        $key = $meetingInfo->media_object_key;
+        $mediaUrl = $meetingInfo->media_paths; // dev/public URL (ถ้ามี)
 
-        // เตรียม temp
+        // เตรียม temp path
         $tempDir = storage_path('app/temp');
         if (!is_dir($tempDir)) mkdir($tempDir, 0777, true);
-        $filename = basename(parse_url($mediaUrl, PHP_URL_PATH) ?: ('media_'.uniqid().'.bin'));
+
+        $filename = $key
+            ? basename($key)
+            : (basename(parse_url($mediaUrl, PHP_URL_PATH) ?: ('media_'.uniqid().'.bin')));
+
         $tempPath = $tempDir . '/' . $filename;
 
-        // ดาวน์โหลดด้วย retry manual
+        // ===== ดาวน์โหลดไฟล์แบบ Stream จาก R2 (แนะนำ) =====
         $downloaded = false;
-        for ($i=0; $i<3 && !$downloaded; $i++) {
-            try {
-                Http::timeout(120)->sink($tempPath)->get($mediaUrl);
-                if (file_exists($tempPath) && filesize($tempPath) > 0) {
-                    $downloaded = true;
-                } else {
-                    usleep(300000);
-                }
-            } catch (\Throwable $e) {
-                usleep(300000);
+        if ($key) {
+            $in = Storage::disk('s3')->readStream($key);
+            if ($in === false) {
+                throw new \RuntimeException("Cannot open R2 object stream: {$key}");
             }
-        }
-        if (!$downloaded) {
-            throw new \RuntimeException('Download failed after retries.');
+            $out = fopen($tempPath, 'w');
+            if ($out === false) {
+                if (is_resource($in)) fclose($in);
+                throw new \RuntimeException("Cannot open temp file for write: {$tempPath}");
+            }
+            stream_copy_to_stream($in, $out);
+            if (is_resource($in)) fclose($in);
+            if (is_resource($out)) fclose($out);
+            $downloaded = file_exists($tempPath) && filesize($tempPath) > 0;
         }
 
-        // อัพโหลดไป HF space
-        $client = new Guzzle(['timeout' => 3600, 'read_timeout'    => 3600,'connect_timeout' => 30,'allow_redirects' => false, 'http_errors' => false]);
+        // ===== Fallback: ดาวน์โหลดผ่าน URL (เช่น public dev URL) =====
+        if (!$downloaded && $mediaUrl) {
+            for ($i=0; $i<3 && !$downloaded; $i++) {
+                try {
+                    Http::timeout(300)->sink($tempPath)->get($mediaUrl);
+                    if (file_exists($tempPath) && filesize($tempPath) > 0) {
+                        $downloaded = true;
+                    } else {
+                        usleep(300000);
+                    }
+                } catch (\Throwable $e) {
+                    usleep(300000);
+                }
+            }
+        }
+
+        if (!$downloaded) {
+            throw new \RuntimeException('Download failed (R2 stream and URL fallback).');
+        }
+
+        // ===== ส่งไปยังบริการถอดเสียง (HF Space) แบบ multipart stream =====
+        $client = new Guzzle([
+            'timeout' => 3600,
+            'read_timeout' => 3600,
+            'connect_timeout' => 30,
+            'allow_redirects' => false,
+            'http_errors' => false,
+        ]);
+
         $url = rtrim(env('MODEL_TRANSCRIPTS', 'https://inwneon-project-voice-diarzation.hf.space'), '/') . '/upload_video/';
 
         try {
@@ -80,20 +110,22 @@ class ProcessMeetingTranscript implements ShouldQueue
             @unlink($tempPath);
         }
 
+        $status = $resp->getStatusCode();
+        if ($status < 200 || $status >= 300) {
+            throw new \RuntimeException("Transcribe API HTTP {$status}: " . substr((string)$resp->getBody(), 0, 500));
+        }
+
         $result = json_decode((string)$resp->getBody(), true);
         if (!isset($result['data']) || !is_array($result['data']) || !count($result['data'])) {
             throw new \RuntimeException('No transcript data received.');
         }
 
-        // อัพเดตข้อมูล transcript
-        $data = $result['data'] ?? [];
-        if (!is_array($data)) $data = [];
-        DB::transaction(function () use ($meetingInfo, $result, $data) {
+        $data = $result['data'];
 
-            // ล้างของเก่าก่อน (ถ้าอยาก keep เดิม เปลี่ยนเป็น upsert ด้านล่าง)
+        // ===== เขียนผลลัพธ์ลง DB =====
+        DB::transaction(function () use ($meetingInfo, $data) {
             TranscriptSegments::where('meeting_info_id', $meetingInfo->id)->delete();
-        
-            // วนสร้างทีละ segment ด้วย Eloquent::create()
+
             foreach ($data as $i => $seg) {
                 TranscriptSegments::create([
                     'meeting_info_id'    => $meetingInfo->id,
@@ -114,9 +146,8 @@ class ProcessMeetingTranscript implements ShouldQueue
                     'overlap_intervals'  => $seg['overlap_intervals'] ?? null,
                 ]);
             }
-            $meetingInfo->update([
-                'status' => 'done',
-            ]);
+
+            $meetingInfo->update(['status' => 'done']);
         });
     }
 
@@ -125,8 +156,7 @@ class ProcessMeetingTranscript implements ShouldQueue
         if ($meetingInfo = MeetingInfo::find($this->meetingInfoId)) {
             $meetingInfo->update(['status' => 'failed']);
         }
-        // เขียน error ลง field อื่นหรือ log ตามสะดวก
-        \Log::error('ProcessMeetingTranscript failed', [
+        Log::error('ProcessMeetingTranscript failed', [
             'meeting_info_id' => $this->meetingInfoId,
             'error' => $e->getMessage(),
         ]);

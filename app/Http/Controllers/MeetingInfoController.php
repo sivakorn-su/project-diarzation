@@ -15,6 +15,7 @@ use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;
 use Illuminate\Support\Facades\Http;
 use App\Jobs\ProcessMeetingTranscript;
+use Aws\S3\S3Client;
 
 class MeetingInfoController extends Controller
 {
@@ -67,44 +68,47 @@ class MeetingInfoController extends Controller
             $request->headers->set('Accept', 'application/json');
         }
 
+        // Laravel max เป็น KB → 3GB = 3,145,728 KB
         $data = $request->validate([
-            'video' => 'required|file|mimetypes:video/mp4,video/quicktime,audio/mpeg,audio/wav|max:10240',
+            'video' => 'required|file|mimetypes:video/mp4,video/quicktime,video/x-matroska,video/webm,audio/mpeg,audio/wav|max:3145728',
         ]);
 
-        $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->first();
-        
-        if ($request->hasFile('video')) {
-            $file = $request->file('video');
-            $type = explode('/', $file->getMimeType())[0];
-            $folder = $type === 'video' ? 'videos' : 'audios';
-            $filename = $folder . '/' . $file->hashName();
+        $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->firstOrFail();
 
-            // Supabase Config
-            $supabaseUrl = env('SUPABASE_URL','https://kkrbjjtjpasqnwjawvpl.supabase.co');
-            $supabaseToken = env('SUPABASE_SERVICE_ROLE');
-            $bucket = env('SUPABASE_BUCKET', 'media');
-            
-            $uploadUrl = "{$supabaseUrl}/storage/v1/object/{$bucket}/{$filename}?upload=1";
-            
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $supabaseToken,
-                'Content-Type' => $file->getMimeType(),
-            ])->withBody(
-                fopen($file->getRealPath(), 'r'),
-                $file->getMimeType()
-            )->put($uploadUrl);
+        try {
+            $updateData = [];
 
-            if ($response->failed()) {
-                return back()->withErrors(['video' => 'Upload to storage failed.'])->withInput();
+            if ($request->hasFile('video')) {
+                $file = $request->file('video');
+
+                $type = explode('/', $file->getMimeType())[0];
+                $folder = $type === 'video' ? 'videos' : 'audios';
+
+                $ext = $file->getClientOriginalExtension() ?: $file->extension();
+                $key = "{$folder}/".Str::uuid()->toString().'.'.$ext;
+
+                // อัปโหลดไป R2 (private แนะนำ)
+                $stream = fopen($file->getRealPath(), 'r');
+                Storage::disk('s3')->put($key, $stream, [
+                    'visibility'   => 'private',
+                    'ContentType'  => $file->getMimeType(),
+                    'CacheControl' => 'public, max-age=31536000, immutable',
+                ]);
+                if (is_resource($stream)) fclose($stream);
+
+                // เก็บเฉพาะ key
+                $updateData['media_object_key'] = $key;
             }
-            
-            $publicUrl = "{$supabaseUrl}/storage/v1/object/public/{$bucket}/{$filename}";
-            $updateData['media_paths'] = $publicUrl;
+
+            $meetingInfo->update($updateData);
+
+            // Inertia Redirect OK
+            return Inertia::location(url()->previous());
+        } catch (\Throwable $e) {
+            // กัน Inertia error: ส่งกลับเป็น redirect พร้อม error แทน JSON exception
+            report($e);
+            return back()->withErrors(['video' => $e->getMessage()])->withInput();
         }
-        
-        $meetingInfo->update($updateData);
-        
-        return Inertia::location(url()->previous());
     }
 
     /**
@@ -115,25 +119,33 @@ class MeetingInfoController extends Controller
         //
     }
 
-    public function transcript(Meeting $meeting)
+    public function transcript(Request $request,Meeting $meeting)
     {
+        // รับ Inertia อย่างถูกต้อง (อย่าส่ง JSON error ใส่หน้า Inertia)
+        if ($request->hasHeader('X-Inertia')) {
+            $request->headers->set('Accept', 'application/json');
+        }
 
         $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->first();
-        
-        $tempDir = storage_path('app/temp');
-        if (!file_exists($tempDir)) {
-            mkdir($tempDir, 0777, true);
+
+        if (!$meetingInfo) {
+            return back()->withErrors(['error' => 'No meeting info found.']);
         }
 
-        if (!$meetingInfo || !$meetingInfo->media_paths) {
-            return response()->json(['error' => 'No media file found.'], 404);
+        // ✅ ใช้ object key เป็นหลัก (ปลอดภัยสุด)
+        $key = $meetingInfo->media_object_key ?? null;
+
+        // ถ้ายังไม่มี key จริง ๆ ค่อย fallback ไปใช้ media_paths (แต่แนะนำให้ย้ายมาเก็บ key)
+        if (!$key && !$meetingInfo->media_paths) {
+            return back()->withErrors(['error' => 'No media file found.']);
         }
 
+        // อัปเดตสถานะ แล้วสั่งคิว
         $meetingInfo->update(['status' => 'processing']);
-        
+
         ProcessMeetingTranscript::dispatch($meetingInfo->id)->onQueue('default');
-       
-        return Inertia::location(url()->previous());
+
+        return back()->with('success', 'Transcription started.');
     }
 
     public function transcriptUpdate(Request $request, Meeting $meeting)
@@ -264,5 +276,86 @@ class MeetingInfoController extends Controller
         $writer->save($tempPath);
 
         return response()->download($tempPath, $fileName)->deleteFileAfterSend(true);
+    }
+
+    private function s3(): S3Client
+    {
+        return new S3Client([
+            'version'                 => 'latest',
+            'region'                  => env('AWS_REGION', 'auto'),
+            'endpoint'                => env('AWS_ENDPOINT'), // https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+            'use_path_style_endpoint' => true,
+            'credentials'             => [
+                'key'    => env('AWS_ACCESS_KEY_ID'),
+                'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            ],
+        ]);
+    }
+
+    /**
+     * 1) สร้าง object key + presigned PUT URL ให้ client อัปตรงไป R2
+     */
+    public function signPut(Request $req, Meeting $meeting)
+    {
+        $data = $req->validate([
+            'filename' => 'required|string',
+            'mime'     => 'required|string',
+        ]);
+
+        $ext    = pathinfo($data['filename'], PATHINFO_EXTENSION) ?: 'bin';
+        $folder = str_starts_with($data['mime'], 'video/') ? 'media/videos' : 'media/audios';
+        $key    = "{$folder}/" . Str::uuid() . '.' . $ext;
+
+        $s3 = $this->s3();
+
+        $cmd = $s3->getCommand('PutObject', [
+            'Bucket'      => env('AWS_BUCKET'),
+            'Key'         => $key,
+            'ContentType' => $data['mime'],
+            'CacheControl'=> 'public, max-age=31536000, immutable',
+            'ACL'         => 'private',
+        ]);
+
+        $presigned = $s3->createPresignedRequest($cmd, '+1 hour');
+
+        return response()->json([
+            'key'     => $key,                     // << เก็บอันนี้ในฝั่ง client รอไว้
+            'url'     => (string) $presigned->getUri(),
+            'headers' => ['Content-Type' => $data['mime']], // ต้องส่งหัวเดียวกันตอน PUT
+        ]);
+    }
+
+    /**
+     * 2) client อัปเสร็จ → เรียก confirm เพื่อตีหัว (head) ดูของจริง แล้วบันทึกลง DB
+     */
+    public function confirmPut(Request $req, Meeting $meeting)
+    {
+        $data = $req->validate([
+            'key' => 'required|string',
+        ]);
+
+        $s3   = $this->s3();
+        $head = $s3->headObject([
+            'Bucket' => env('AWS_BUCKET'),
+            'Key'    => $data['key'],
+        ]);
+
+        // map ไปยัง MeetingInfo ของ meeting นี้
+        $info = MeetingInfo::firstOrCreate(['meeting_id' => $meeting->id]);
+        $info->media_object_key = $data['key'];                    // << save key
+        $info->media_mime       = $head['ContentType']   ?? null;
+        $info->media_size       = $head['ContentLength'] ?? null;
+        $info->status           = 'pending';                       // พร้อมกดถอดเสียง
+        $info->save();
+
+        // (ถ้า bucket public และมี base URL)
+        $public = rtrim(env('R2_PUBLIC_BASE_URL', ''), '/');
+
+        return response()->json([
+            'ok'        => true,
+            'key'       => $data['key'],
+            'mediaUrl'  => $public ? "{$public}/{$data['key']}" : null,
+            'meetingId' => $meeting->id,
+        ]);
     }
 }

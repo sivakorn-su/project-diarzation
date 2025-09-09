@@ -86,10 +86,16 @@ const removeFile = () => { form.video = null; if (fileInput.value) fileInput.val
 const getFileIcon = (file: File) => file.type.startsWith('audio/') ? Music : file.type.startsWith('video/') ? Film : FileUpIcon;
 const getFileSize = (size: number) => { const kb = size/1024; return kb < 1024 ? `${kb.toFixed(1)} KB` : `${(kb/1024).toFixed(1)} MB`; };
 
+const MAX_BYTES = 500 * 1024 * 1024;
 const submitComment = async () => {
   form.processing = true; form.statusMessage = ''; form.statusType = '';
   if (!form.video) { alert('เลือกไฟล์ก่อนนะ'); form.processing = false; return; }
   if (!form.url)   { alert('กรอก URL ก่อน');     form.processing = false; return; }
+  if (form.video.size > MAX_BYTES) {
+    alert('ไฟล์ใหญ่เกินไป! (สูงสุด 500MB)');
+    form.processing = false;
+    return;
+  }
   try {
     await form.post(`/meetings/${meeting.id}/infos`, {
       forceFormData: true,
@@ -414,7 +420,7 @@ const closeSpeakerModal = () => speakerModalOpen.value = false;
           <button type="submit" :disabled="form.processing"
             :class="['inline-flex items-center gap-2 rounded-md px-4 py-2 text-white transition',
                      form.processing ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700']">
-            <span>{{ form.processing ? 'กำลังอัปโหลด…' : 'อัปโหลด' }}</span>
+            <span>{{ form.processing ? 'Processing…' : 'Upload' }}</span>
             <component :is="form.processing ? Loader : FileUpIcon" class="h-5 w-5" />
           </button>
         </div>
@@ -459,6 +465,7 @@ const closeSpeakerModal = () => speakerModalOpen.value = false;
               :ListFilterIcon="ListFilterIcon"
               :videoPath="meeting.info?.media_paths"
               :transcript_json="meeting.info!.transcript_json"
+              :status="meeting.info?.status"
             />
           </div>
           <!-- <div v-else class="mt-10 flex flex-col items-center justify-center text-gray-500">

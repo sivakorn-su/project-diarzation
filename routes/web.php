@@ -13,6 +13,7 @@ Route::get('/', function () {
     return Inertia::render('auth/Login');
 })->name('home');
 
+
 Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');

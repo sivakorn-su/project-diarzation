@@ -40,7 +40,7 @@ class MeetingResource extends JsonResource
         $stripNulls = fn (array $a) => array_filter($a, fn($v) => !is_null($v));
 
         $validSegments = $segments->where('is_remove', false);
-        
+
         $audioLength   = $hasSeg ? (float) ($segments->max('end') ?? 0) : null;
         $speakersCol   = $hasSeg ? $validSegments->pluck('speaker')->filter()->unique()->values() : collect();
         $numSpeakers   = $hasSeg ? $speakersCol->count() : null;
@@ -93,7 +93,7 @@ class MeetingResource extends JsonResource
                     'id'          => $info->id,
                     'meeting_id'  => $info->meeting_id,
                     'description' => $info->description,
-                    'media_paths' => $info->media_paths,
+                    'media_paths' => $info->media_paths ? $info->media_paths : $info->media_url,
                     'status'      => $info->status,
                     'created_at'  => optional($info->created_at)->toJSON(),
                     'updated_at'  => optional($info->updated_at)->toJSON(),
