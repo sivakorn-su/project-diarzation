@@ -470,14 +470,14 @@ function parseNamesFromText(text: string): string[] {
 function randomPickThree() {
   pickedNames.value = []
   const names = parseNamesFromText(resultText.value || '')
-  if (names.length < 1) {
+  if (names.length < 3) {
     togetherError.value = `รายชื่อไม่พอ (${names.length}) ในผลลัพธ์`
     return
   }
   togetherError.value = null
   // สุ่มไม่ซ้ำ 3 รายชื่อ
   const seen = new Set<number>()
-  while (pickedNames.value.length < 1) {
+  while (pickedNames.value.length < 3) {
     const idx = Math.floor(Math.random() * names.length)
     if (!seen.has(idx)) {
       seen.add(idx)
