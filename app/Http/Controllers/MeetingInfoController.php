@@ -65,9 +65,9 @@ class MeetingInfoController extends Controller
      */
     public function update(Request $request, Meeting $meeting)
     {
-        if ($request->hasHeader('X-Inertia')) {
-            $request->headers->set('Accept', 'application/json');
-        }
+        // if ($request->hasHeader('X-Inertia')) {
+        //     $request->headers->set('Accept', 'application/json');
+        // }
 
         // Laravel max เป็น KB → 3GB = 3,145,728 KB
         $data = $request->validate([
