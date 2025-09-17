@@ -32,7 +32,7 @@ class TranscriptMeetingJob implements ShouldQueue
 
     public function handle(): void
     {
-        $meetingInfo = MeetingInfo::findOrFail($this->meetingInfoId);
+        $meetingInfo = MeetingInfo::find($this->meetingInfoId);
 
         // 1) สร้าง/เลือก URL สำหรับส่งให้ FastAPI
         $presignedUrl = null;
@@ -67,14 +67,21 @@ class TranscriptMeetingJob implements ShouldQueue
             'timeout'         => 3600,
             'connect_timeout' => 30,
             'http_errors'     => false,
+            'allow_redirects' => false,
         ]);
 
-        $api = rtrim(env('MODEL_TRANSCRIPTS', 'https://inwneon-project-voice-diarzation.hf.space'), '/')
+        $api = rtrim(env('MODEL_TRANSCRIPTS', 'https://f0b33e89cef9.ngrok-free.app/'), '/')
              . '/upload_video/';
+
+        // if (!$this->warmHfSpace($api, 25)) {
+        //     $this->release(60); return;
+        // }
 
         $resp = $client->post($api, [
             'headers' => ['Accept' => 'application/json'],
-            'json'    => ['url' => $presignedUrl], // << ส่งแค่ลิงก์
+            'json'    => [
+                'url' => $presignedUrl
+            ],
         ]);
 
         $status = $resp->getStatusCode();
@@ -131,4 +138,26 @@ class TranscriptMeetingJob implements ShouldQueue
             'error' => $e->getMessage(),
         ]);
     }
+
+    private function warmHfSpace(string $baseUrl, int $maxWaitSec = 25): bool
+    {
+        $deadline = time() + $maxWaitSec;
+        $delay = 2;
+        while (time() < $deadline) {
+            try {
+                $r = Http::withHeaders(['User-Agent' => 'zenitcomp-worker/1.0'])
+                    ->timeout(8)->connectTimeout(5)->withOptions(['verify' => false])
+                    ->get($baseUrl);
+                if ($r->successful()) return true;
+                if (in_array($r->status(), [502,503,504], true)) {
+                    sleep($delay); $delay = min($delay*2, 8); continue;
+                }
+                return false; // 4xx = ไม่ใช่ภาวะหลับ
+            } catch (\Throwable $e) {
+                sleep($delay); $delay = min($delay*2, 8);
+            }
+        }
+        return false;
+    }
+
 }
