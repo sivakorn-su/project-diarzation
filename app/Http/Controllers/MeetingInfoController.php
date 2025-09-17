@@ -74,7 +74,7 @@ class MeetingInfoController extends Controller
             'video' => 'required|file|mimetypes:video/mp4,video/quicktime,video/x-matroska,video/webm,audio/mpeg,audio/wav|max:3145728',
         ]);
 
-        $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->firstOrFail();
+        $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->first();
 
         try {
             $updateData = [];
