@@ -70,7 +70,7 @@ class TranscriptMeetingJob implements ShouldQueue
             'allow_redirects' => false,
         ]);
 
-        $api = rtrim(env('MODEL_TRANSCRIPTS', 'https://f0b33e89cef9.ngrok-free.app/'), '/')
+        $api = rtrim(env('MODEL_TRANSCRIPTS', 'https://inwneon-project-voice-diarzation.hf.space'), '/')
              . '/upload_video/';
 
         // if (!$this->warmHfSpace($api, 25)) {
