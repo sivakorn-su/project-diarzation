@@ -86,7 +86,7 @@ const removeFile = () => { form.video = null; if (fileInput.value) fileInput.val
 const getFileIcon = (file: File) => file.type.startsWith('audio/') ? Music : file.type.startsWith('video/') ? Film : FileUpIcon;
 const getFileSize = (size: number) => { const kb = size/1024; return kb < 1024 ? `${kb.toFixed(1)} KB` : `${(kb/1024).toFixed(1)} MB`; };
 
-const MAX_BYTES = 100 * 1024 * 1024;
+const MAX_BYTES = 1000 * 1024 * 1024;
 const submitComment = async () => {
   form.processing = true; form.statusMessage = ''; form.statusType = '';
   if (!form.video) { alert('เลือกไฟล์ก่อนนะ'); form.processing = false; return; }
@@ -410,7 +410,6 @@ const closeSpeakerModal = () => speakerModalOpen.value = false;
                 <li>• Large files may take several minutes to process</li>
                 <li>• You'll be notified when transcription is complete</li>
                 <li>• Supported formats: Audio (MP3, WAV, FLAC) and Video (MP4, MOV, AVI)</li>
-                <li>• Maximum file size: 100MB</li>
               </ul>
             </div>
           </div>

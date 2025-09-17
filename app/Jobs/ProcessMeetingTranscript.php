@@ -24,7 +24,7 @@ class ProcessMeetingTranscript implements ShouldQueue
     public int $timeout = 3600;   // 1 ชม.
     public bool $failOnTimeout = true;
 
-    public function __construct(public int $meetingInfoId) {}
+    public function __construct(public int $meetingInfoId, public ?string $presignedUrl = null) {}
 
     public function middleware(): array
     {
@@ -38,6 +38,7 @@ class ProcessMeetingTranscript implements ShouldQueue
         // ✅ เลือกแหล่งดาวน์โหลด: key ก่อน, ถ้าไม่มีค่อย fallback ไป URL
         $key = $meetingInfo->media_object_key;
         $mediaUrl = $meetingInfo->media_paths; // dev/public URL (ถ้ามี)
+        $urlForName = $this->presignedUrl ?: $mediaUrl;
 
         // เตรียม temp path
         $tempDir = storage_path('app/temp');
@@ -45,13 +46,34 @@ class ProcessMeetingTranscript implements ShouldQueue
 
         $filename = $key
             ? basename($key)
-            : (basename(parse_url($mediaUrl, PHP_URL_PATH) ?: ('media_'.uniqid().'.bin')));
+            : (basename(parse_url($urlForName, PHP_URL_PATH) ?: ('media_'.uniqid().'.bin')));
 
         $tempPath = $tempDir . '/' . $filename;
 
+        $downloadViaHttp = function (string $url) use ($tempPath): bool {
+            for ($i = 0; $i < 3; $i++) {
+                try {
+                    Http::timeout(300)->sink($tempPath)->get($url);
+                    if (file_exists($tempPath) && filesize($tempPath) > 0) {
+                        return true;
+                    }
+                    @unlink($tempPath);
+                } catch (\Throwable $e) {
+                    @unlink($tempPath);
+                }
+                usleep(300000);
+            }
+
+            return false;
+        };
+
         // ===== ดาวน์โหลดไฟล์แบบ Stream จาก R2 (แนะนำ) =====
         $downloaded = false;
-        if ($key) {
+        if ($this->presignedUrl) {
+            $downloaded = $downloadViaHttp($this->presignedUrl);
+        }
+
+        if (!$downloaded && $key) {
             $in = Storage::disk('s3')->readStream($key);
             if ($in === false) {
                 throw new \RuntimeException("Cannot open R2 object stream: {$key}");
@@ -69,18 +91,7 @@ class ProcessMeetingTranscript implements ShouldQueue
 
         // ===== Fallback: ดาวน์โหลดผ่าน URL (เช่น public dev URL) =====
         if (!$downloaded && $mediaUrl) {
-            for ($i=0; $i<3 && !$downloaded; $i++) {
-                try {
-                    Http::timeout(300)->sink($tempPath)->get($mediaUrl);
-                    if (file_exists($tempPath) && filesize($tempPath) > 0) {
-                        $downloaded = true;
-                    } else {
-                        usleep(300000);
-                    }
-                } catch (\Throwable $e) {
-                    usleep(300000);
-                }
-            }
+            $downloaded = $downloadViaHttp($mediaUrl);
         }
 
         if (!$downloaded) {

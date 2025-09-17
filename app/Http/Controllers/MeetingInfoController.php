@@ -16,7 +16,8 @@ use PhpOffice\PhpWord\IOFactory;
 use Illuminate\Support\Facades\Http;
 use App\Jobs\ProcessMeetingTranscript;
 use Aws\S3\S3Client;
-
+use GuzzleHttp\Client as Guzzle;
+use App\Jobs\TranscriptMeetingJob;
 class MeetingInfoController extends Controller
 {
     /**
@@ -143,7 +144,8 @@ class MeetingInfoController extends Controller
         // อัปเดตสถานะ แล้วสั่งคิว
         $meetingInfo->update(['status' => 'processing']);
 
-        ProcessMeetingTranscript::dispatch($meetingInfo->id)->onQueue('default');
+        TranscriptMeetingJob::dispatch($meetingInfo->id)
+            ->onQueue('default');
 
         return back()->with('success', 'Transcription started.');
     }
