@@ -4,7 +4,7 @@
 <template>
     <div class="flex aspect-square size-12 items-center justify-center text-sidebar-primary-foreground">
         <img
-            src="/favicon.svg"
+            src="/favicon.png"
             alt="Avatar"
             class="w-8 h-8  object-cover"
         />
