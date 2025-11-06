@@ -14,11 +14,11 @@ defineProps<{
             <div class="flex flex-col gap-8">
                 <div class="flex flex-col items-center gap-4">
                     <Link :href="route('home')" class="flex flex-col items-center gap-2 font-medium">
-                        <div class="mb-1 flex h-9 w-9 items-center justify-center rounded-md">
+                        <div class="mb-1 flex h-10 w-42 items-center justify-center ">
                             <img
-                                src="/favicon.svg"
+                                src="/logo.svg"
                                 alt="Avatar"
-                                class="w-12 h-12 rounded-full object-cover"
+                                class="w-42 h-10 object-cover"
                             />
                         </div>
                         <span class="sr-only">{{ title }}</span>
