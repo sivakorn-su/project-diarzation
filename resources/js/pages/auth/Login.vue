@@ -78,7 +78,12 @@ const submit = () => {
                     </Label>
                 </div>
 
-                <Button type="submit" class="mt-4 w-full bg-blue-500 shadow-lg shadow-blue-500/50" :tabindex="4" :disabled="form.processing">
+                <Button
+                    type="submit"
+                    class="mt-4 w-full bg-amber-500 hover:bg-amber-600 shadow-lg "
+                    :tabindex="4"
+                    :disabled="form.processing"
+                >
                     <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
                     Log in
                 </Button>
