@@ -16,7 +16,8 @@ use PhpOffice\PhpWord\IOFactory;
 use Illuminate\Support\Facades\Http;
 use App\Jobs\ProcessMeetingTranscript;
 use Aws\S3\S3Client;
-
+use GuzzleHttp\Client as Guzzle;
+use App\Jobs\TranscriptMeetingJob;
 class MeetingInfoController extends Controller
 {
     /**
@@ -64,16 +65,16 @@ class MeetingInfoController extends Controller
      */
     public function update(Request $request, Meeting $meeting)
     {
-        if ($request->hasHeader('X-Inertia')) {
-            $request->headers->set('Accept', 'application/json');
-        }
+        // if ($request->hasHeader('X-Inertia')) {
+        //     $request->headers->set('Accept', 'application/json');
+        // }
 
         // Laravel max เป็น KB → 3GB = 3,145,728 KB
         $data = $request->validate([
             'video' => 'required|file|mimetypes:video/mp4,video/quicktime,video/x-matroska,video/webm,audio/mpeg,audio/wav|max:3145728',
         ]);
 
-        $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->firstOrFail();
+        $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->first();
 
         try {
             $updateData = [];
@@ -143,7 +144,8 @@ class MeetingInfoController extends Controller
         // อัปเดตสถานะ แล้วสั่งคิว
         $meetingInfo->update(['status' => 'processing']);
 
-        ProcessMeetingTranscript::dispatch($meetingInfo->id)->onQueue('default');
+        TranscriptMeetingJob::dispatch($meetingInfo->id)
+            ->onQueue('default');
 
         return back()->with('success', 'Transcription started.');
     }
