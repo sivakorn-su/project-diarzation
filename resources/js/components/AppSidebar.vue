@@ -24,12 +24,11 @@ const mainNavItems: NavItem[] = [
         href: '/status',
         icon: BriefcaseMedicalIcon,
     },
-    // {
-    //     title: 'OCR',
-    //     href: '/ocr',
-    //     icon: ScanText,
-    // },
-
+    {
+        title: 'OCR',
+        href: '/ocr',
+        icon: ScanText,
+    },
 ];
 
 const footerNavItems: NavItem[] = [

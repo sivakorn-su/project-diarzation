@@ -18,10 +18,10 @@
           <button
             type="button"
             @click="handleSubmit"
-            :disabled="isSubmitting || !file || !apiKey"
+            :disabled="isSubmitting || !file "
             :class="[
               'inline-flex items-center gap-2 rounded-md px-4 py-2 text-white transition',
-              isSubmitting || !file || !apiKey ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+              isSubmitting || !file  ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
             ]"
             title="ดึงข้อความจากรูป/PDF"
           >
@@ -154,12 +154,12 @@
           <pre v-if="showJson" class="w-full overflow-auto rounded-lg border px-3 py-2 text-xs bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800">{{ rawJson }}</pre>
         </div>
         <!-- === Together AI Actions === -->
-<div class="mt-6 border rounded-xl">
+<!-- <div class="mt-6 border rounded-xl">
   <div class="px-4 py-2 border-b text-sm font-semibold text-gray-700 dark:text-gray-200 dark:border-gray-800">
     สุ่มรายชื่อผู้โชคดี
-  </div>
+  </div> -->
 
-  <div class="p-4 space-y-3">
+  <!-- <div class="p-4 space-y-3">
     <div v-if="!togetherApiKey" class="flex flex-wrap gap-2">
       <input
         v-model="togetherApiKey"
@@ -181,7 +181,6 @@
         title="Together Model"
       >
         <option value="openai/gpt-oss-20b">openai/gpt-oss-20b</option>
-        <!-- ใส่รุ่นอื่นที่คุณมีสิทธิ์ใช้ได้ตามต้องการ -->
       </select>
     </div>
 
@@ -211,14 +210,14 @@
       </div>
       </div>
 
-      <!-- <button
+      <button
         type="button"
         @click="sendToTogether"
         :disabled="!togetherApiKey || pickedNames.length !== 3 || togetherLoading"
         class="ml-auto inline-flex items-center gap-2 rounded-md px-3 py-2 text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400"
       >
         {{ togetherLoading ? 'กำลังส่ง...' : 'ส่งไป Together AI' }}
-      </button> -->
+      </button>
     </div>
 
     <div v-if="togetherError" class="text-sm text-red-600 dark:text-red-400">
@@ -233,8 +232,8 @@
         readonly
       />
     </div>
-  </div>
-</div>
+  </div>-->
+  <!-- </div>  -->
 
       </div>
     </AppLayout>
@@ -253,7 +252,7 @@
   ]
 
   // --- State
-  const apiKey = ref<string>(import.meta.env.VITE_TYPHOON_API_KEY || '')
+  const apiKey = ref<string>('sk-isgEKmDdHNQGhjq0R7GVTKAUoOSRr0qOAwoJObIXs5w5CBNL')
   const showKey = ref<boolean>(false)
 
   const file = ref<File | null>(null)
@@ -441,7 +440,7 @@
   onMounted(() => {})
 
   // === Together AI state ===
-const togetherApiKey = ref<string>(import.meta.env.VITE_TOGETHER_API_KEY || '')
+const togetherApiKey = ref<string>('import.meta.env.VITE_TOGETHER_API_KEY' || '')
 const togetherShowKey = ref<boolean>(false)
 const togetherModel = ref<string>('openai/gpt-oss-20b')
 const togetherPrompt = ref<string>('สรุป/อธิบายรายชื่อ 3 คนที่สุ่มได้แบบ bullet list ภาษาไทย สั้น กระชับ')
