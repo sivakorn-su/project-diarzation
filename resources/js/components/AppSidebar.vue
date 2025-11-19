@@ -29,6 +29,11 @@ const mainNavItems: NavItem[] = [
         href: '/ocr',
         icon: ScanText,
     },
+    {
+        title: 'Doc Compare',
+        href: '/ocr/compare',
+        icon: FileTextIcon,
+    },
 ];
 
 const footerNavItems: NavItem[] = [

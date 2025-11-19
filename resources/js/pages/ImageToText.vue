@@ -13,6 +13,44 @@
           </span>
         </div>
 
+        <!-- Mode selection cards -->
+        <div class="grid gap-4 sm:grid-cols-2 mb-6">
+          <Link
+            v-for="card in modeCards"
+            :key="card.title"
+            :href="card.href"
+            class="group block"
+            preserve-scroll
+          >
+            <Card
+              :class="[
+                'transition-all duration-200 border-2 rounded-2xl h-full backdrop-blur-sm',
+                card.active
+                  ? 'border-sky-400 shadow-xl shadow-sky-100/60 dark:shadow-sky-900/40'
+                  : 'border-transparent hover:border-sky-200 dark:hover:border-sky-800/70 bg-gray-50/60 dark:bg-gray-900/40'
+              ]"
+            >
+              <CardHeader class="flex flex-row items-center gap-4">
+                <div
+                  :class="[
+                    'w-12 h-12 rounded-2xl flex items-center justify-center transition-colors',
+                    card.active ? 'bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-300' : 'bg-white text-gray-500 dark:bg-gray-900'
+                  ]"
+                >
+                  <component :is="card.icon" class="h-5 w-5" />
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <CardTitle class="text-lg">{{ card.title }}</CardTitle>
+                    <span v-if="card.active" class="text-xs px-2 py-0.5 rounded-full bg-sky-100 text-sky-600 dark:bg-sky-900/60 dark:text-sky-300">ใช้งานอยู่</span>
+                  </div>
+                  <CardDescription>{{ card.description }}</CardDescription>
+                </div>
+              </CardHeader>
+            </Card>
+          </Link>
+        </div>
+
         <!-- Controls (ปุ่มอยู่นอกกล่องอัปโหลดชัด ๆ) -->
         <div class="mb-4 flex flex-wrap items-center gap-2">
           <button
@@ -240,15 +278,42 @@
   </template>
 
   <script setup lang="ts">
+  import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
   import AppLayout from '@/layouts/AppLayout.vue'
   import { type BreadcrumbItem } from '@/types'
-  import { Head } from '@inertiajs/vue3'
+  import { Head, Link } from '@inertiajs/vue3'
   import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
-  import { UploadCloud, X, AlertCircle, FileUpIcon, Loader, ExternalLinkIcon} from 'lucide-vue-next'
+  import { UploadCloud, X, AlertCircle, FileUpIcon, Loader, ExternalLinkIcon, ScanText, FileDiff } from 'lucide-vue-next'
+  import type { LucideIcon } from 'lucide-vue-next'
 
   const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'OCR', href: '/ocr' },
+  ]
+
+  type ModeCard = {
+    title: string
+    description: string
+    href: string
+    icon: LucideIcon
+    active: boolean
+  }
+
+  const modeCards: ModeCard[] = [
+    {
+      title: 'OCR ปกติ',
+      description: 'แปลงรูปภาพหรือ PDF เป็นข้อความ',
+      href: route('ocr'),
+      icon: ScanText,
+      active: true,
+    },
+    {
+      title: 'OCR เทียบเอกสาร',
+      description: 'เปรียบเทียบต้นฉบับกับฉบับแก้ไข',
+      href: route('ocr.compare'),
+      icon: FileDiff,
+      active: false,
+    },
   ]
 
   // --- State

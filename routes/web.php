@@ -74,7 +74,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/ocr', function () {
         return Inertia::render('ImageToText');
     })->name('ocr');
-
+    Route::get('/ocr/compare', function () {
+        return Inertia::render('DocumentCompare');
+    })->name('ocr.compare');
     Route::get('/check-upload-limit', function () {
         return [
             'upload_max_filesize' => ini_get('upload_max_filesize'),
