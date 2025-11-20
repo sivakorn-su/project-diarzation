@@ -334,7 +334,7 @@ const analyzedAt = ref<string | null>(null)
 const comparisonResults = ref<ComparisonResult[]>([])
 
 const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? ''
-const analyzeEndpoint = 'https://102fb89deaca.ngrok-free.app/compare-documents'
+const analyzeEndpoint =(import.meta.env.VITE_OCR_COMPARE_ENDPOINT as string | undefined) ||''
 
 const canSubmit = computed(() => Boolean(originalFile.value && revisedFile.value) && !isSubmitting.value)
 
