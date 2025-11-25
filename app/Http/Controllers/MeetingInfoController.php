@@ -86,16 +86,17 @@ class MeetingInfoController extends Controller
                 $folder = $type === 'video' ? 'videos' : 'audios';
 
                 $ext = $file->getClientOriginalExtension() ?: $file->extension();
-                $key = "{$folder}/".Str::uuid()->toString().'.'.$ext;
+                $key = "{$folder}/" . Str::uuid()->toString() . '.' . $ext;
 
                 // อัปโหลดไป R2 (private แนะนำ)
                 $stream = fopen($file->getRealPath(), 'r');
                 Storage::disk('s3')->put($key, $stream, [
-                    'visibility'   => 'private',
-                    'ContentType'  => $file->getMimeType(),
+                    'visibility' => 'private',
+                    'ContentType' => $file->getMimeType(),
                     'CacheControl' => 'public, max-age=31536000, immutable',
                 ]);
-                if (is_resource($stream)) fclose($stream);
+                if (is_resource($stream))
+                    fclose($stream);
 
                 // เก็บเฉพาะ key
                 $updateData['media_object_key'] = $key;
@@ -120,7 +121,7 @@ class MeetingInfoController extends Controller
         //
     }
 
-    public function transcript(Request $request,Meeting $meeting)
+    public function transcript(Request $request, Meeting $meeting)
     {
         // รับ Inertia อย่างถูกต้อง (อย่าส่ง JSON error ใส่หน้า Inertia)
         if ($request->hasHeader('X-Inertia')) {
@@ -152,86 +153,86 @@ class MeetingInfoController extends Controller
 
     public function transcriptUpdate(Request $request, Meeting $meeting)
     {
-            // รับ JSON มาเป็นสตริง
-            $validated = $request->validate([
-                'transcript_json' => 'required|json',
-            ]);
+        // รับ JSON มาเป็นสตริง
+        $validated = $request->validate([
+            'transcript_json' => 'required|json',
+        ]);
 
-            // แปลงเป็นอาเรย์
-            $incoming = json_decode($validated['transcript_json'], true);
-            if (!is_array($incoming)) {
-                return $request->wantsJson()
-                    ? response()->json(['error' => 'Invalid transcript_json'], 422)
-                    : back()->withErrors(['error' => 'Invalid transcript_json']);
+        // แปลงเป็นอาเรย์
+        $incoming = json_decode($validated['transcript_json'], true);
+        if (!is_array($incoming)) {
+            return $request->wantsJson()
+                ? response()->json(['error' => 'Invalid transcript_json'], 422)
+                : back()->withErrors(['error' => 'Invalid transcript_json']);
+        }
+
+        // หา/สร้าง record
+        $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->firstOrFail();
+
+        // ของเดิม (ต้อง set casts ในโมเดล: 'transcript_json' => 'array')
+        $current = $meetingInfo->transcript_json ?? [];
+
+        // merge แบบ preserve ฟิลด์เดิม (เช่น media/info อื่นๆ)
+        $merged = array_merge($current, $incoming);
+
+        // ถ้ามี data ใหม่ให้ทับ, ถ้าไม่มีให้กัน null
+        if (isset($incoming['data']) && is_array($incoming['data'])) {
+            $merged['data'] = $incoming['data'];
+        } else {
+            $merged['data'] = $merged['data'] ?? [];
+        }
+
+        // คำนวณสถิติใหม่จาก data ปัจจุบัน
+        $stats = (function (array $list) {
+            $total = count($list);
+            $counts = [];
+            foreach ($list as $seg) {
+                $sp = $seg['speaker'] ?? 'Unknown';
+                $counts[$sp] = ($counts[$sp] ?? 0) + 1;
             }
+            ksort($counts);
+            return [
+                'total_sentence' => $total,
+                'count_speaker' => collect($counts)->map(fn($c, $s) => ['speaker' => $s, 'count' => $c])->values()->all(),
+                'num_speakers' => count($counts),
+                'speaker_array' => array_values(array_keys($counts)),
+            ];
+        })($merged['data']);
 
-            // หา/สร้าง record
-            $meetingInfo = MeetingInfo::where('meeting_id', $meeting->id)->firstOrFail();
+        // อัปเดตค่าที่ต้องมีเสมอ
+        $merged['total_sentence'] = $stats['total_sentence'];
+        $merged['count_speaker'] = $stats['count_speaker'];
+        $merged['num_speakers'] = $stats['num_speakers'];
+        $merged['speaker_array'] = $stats['speaker_array'];
 
-            // ของเดิม (ต้อง set casts ในโมเดล: 'transcript_json' => 'array')
-            $current = $meetingInfo->transcript_json ?? [];
-
-            // merge แบบ preserve ฟิลด์เดิม (เช่น media/info อื่นๆ)
-            $merged = array_merge($current, $incoming);
-
-            // ถ้ามี data ใหม่ให้ทับ, ถ้าไม่มีให้กัน null
-            if (isset($incoming['data']) && is_array($incoming['data'])) {
-                $merged['data'] = $incoming['data'];
-            } else {
-                $merged['data'] = $merged['data'] ?? [];
+        // กันเผลอลบทิ้ง ถ้า client ไม่ส่งมา
+        foreach (['audio_path', 'video_path', 'audio_length'] as $k) {
+            if (!array_key_exists($k, $merged) && array_key_exists($k, $current)) {
+                $merged[$k] = $current[$k];
             }
+        }
 
-            // คำนวณสถิติใหม่จาก data ปัจจุบัน
-            $stats = (function (array $list) {
-                $total = count($list);
-                $counts = [];
-                foreach ($list as $seg) {
-                    $sp = $seg['speaker'] ?? 'Unknown';
-                    $counts[$sp] = ($counts[$sp] ?? 0) + 1;
-                }
-                ksort($counts);
-                return [
-                    'total_sentence' => $total,
-                    'count_speaker'  => collect($counts)->map(fn($c,$s)=>['speaker'=>$s,'count'=>$c])->values()->all(),
-                    'num_speakers'   => count($counts),
-                    'speaker_array'  => array_values(array_keys($counts)),
-                ];
-            })($merged['data']);
+        // บันทึก (โมเดลควรมี casts: transcript_json => 'array')
+        $meetingInfo->update([
+            'transcript_json' => $merged,
+        ]);
 
-            // อัปเดตค่าที่ต้องมีเสมอ
-            $merged['total_sentence'] = $stats['total_sentence'];
-            $merged['count_speaker']  = $stats['count_speaker'];
-            $merged['num_speakers']   = $stats['num_speakers'];
-            $merged['speaker_array']  = $stats['speaker_array'];
-
-            // กันเผลอลบทิ้ง ถ้า client ไม่ส่งมา
-            foreach (['audio_path','video_path','audio_length'] as $k) {
-                if (!array_key_exists($k, $merged) && array_key_exists($k, $current)) {
-                    $merged[$k] = $current[$k];
-                }
-            }
-
-            // บันทึก (โมเดลควรมี casts: transcript_json => 'array')
-            $meetingInfo->update([
+        // ถ้าขอเป็น JSON ส่งสถิติกลับให้ FE ใช้ต่อได้เลย
+        if ($request->wantsJson()) {
+            return response()->json([
+                'num_speakers' => $merged['num_speakers'],
+                'count_speaker' => $merged['count_speaker'],
+                'total_sentence' => $merged['total_sentence'],
                 'transcript_json' => $merged,
             ]);
+        }
 
-            // ถ้าขอเป็น JSON ส่งสถิติกลับให้ FE ใช้ต่อได้เลย
-            if ($request->wantsJson()) {
-                return response()->json([
-                    'num_speakers'   => $merged['num_speakers'],
-                    'count_speaker'  => $merged['count_speaker'],
-                    'total_sentence' => $merged['total_sentence'],
-                    'transcript_json'=> $merged,
-                ]);
-            }
-
-            // Inertia ฟลัชค่ากลับไป (อ่านได้จาก props.flash ใน FE)
-            return back()->with([
-                'num_speakers'   => $merged['num_speakers'],
-                'count_speaker'  => $merged['count_speaker'],
-                'total_sentence' => $merged['total_sentence'],
-            ]);
+        // Inertia ฟลัชค่ากลับไป (อ่านได้จาก props.flash ใน FE)
+        return back()->with([
+            'num_speakers' => $merged['num_speakers'],
+            'count_speaker' => $merged['count_speaker'],
+            'total_sentence' => $merged['total_sentence'],
+        ]);
     }
 
 
@@ -255,25 +256,87 @@ class MeetingInfoController extends Controller
         }
 
         $phpWord = new PhpWord();
-        $section = $phpWord->addSection();
-        $section->addTitle('Meeting Transcript', 1);
-        $section->addTextBreak(1);
-        foreach ($transcript['data'] as $item) {
-            $speaker = $item['speaker'] ?? 'Unknown';
-            $start = $item['start'] ?? '';
-            $end = $item['end'] ?? '';
-            $text = $item['text'] ?? '';
-            $section->addText("Speaker: $speaker");
-            $section->addText("Time: $start - $end s");
-            $section->addText($text, ['spaceAfter' => 200]);
-            $section->addTextBreak(1);
+
+        // Set default font settings
+        $phpWord->setDefaultFontName('Sarabun'); // Use a font that supports Thai if possible, or fallback to Arial
+        $phpWord->setDefaultFontSize(11);
+
+        // Add Section
+        $section = $phpWord->addSection([
+            'marginTop' => 1440, // 1 inch
+            'marginBottom' => 1440,
+            'marginLeft' => 1440,
+            'marginRight' => 1440,
+        ]);
+
+        // --- Header with Logo ---
+        $header = $section->addHeader();
+        $table = $header->addTable(['width' => 100 * 50, 'unit' => 'pct', 'borderBottomSize' => 6]);
+        $table->addRow();
+
+        // Logo Cell
+        $logoCell = $table->addCell(2000);
+        $logoPath = public_path('apple-touch-icon.png');
+        if (file_exists($logoPath)) {
+            $logoCell->addImage($logoPath, [
+                'width' => 50,
+                'height' => 50,
+                'align' => 'left'
+            ]);
         }
 
+        // Title Cell
+        $titleCell = $table->addCell(8000);
+        $titleCell->addText('Meeting Transcript', ['bold' => true, 'size' => 18, 'color' => '333333'], ['align' => 'right', 'spaceAfter' => 0]);
+        $titleCell->addText('Generated on: ' . date('d M Y H:i'), ['size' => 9, 'color' => '777777'], ['align' => 'right']);
+
+        // --- Metadata Section ---
+        $section->addTextBreak(1);
+        $section->addText('Meeting Details', ['bold' => true, 'size' => 14, 'color' => '2E74B5']);
+        $section->addText('ID: ' . $meetingInfo->meeting_id, ['size' => 10]);
+        if ($meetingInfo->created_at) {
+            $section->addText('Date: ' . $meetingInfo->created_at->format('d F Y, H:i'), ['size' => 10]);
+        }
+        $section->addTextBreak(1);
+
+        // --- Transcript Content ---
+        // Define styles
+        $phpWord->addParagraphStyle('SpeakerPara', ['spaceBefore' => 120, 'spaceAfter' => 0, 'keepNext' => true]);
+        $phpWord->addParagraphStyle('TextPara', ['spaceBefore' => 0, 'spaceAfter' => 240, 'alignment' => 'both']);
+
+        foreach ($transcript['data'] as $item) {
+            $speaker = $item['speaker'] ?? 'Unknown';
+            $startSeconds = $item['start'] ?? 0;
+            $endSeconds = $item['end'] ?? 0;
+            $text = $item['text'] ?? '';
+
+            // Format time
+            $start = gmdate("H:i:s", (int) $startSeconds);
+            $end = gmdate("H:i:s", (int) $endSeconds);
+
+            // Speaker Line: "Speaker Name [00:00:00 - 00:00:10]"
+            $textRun = $section->addTextRun('SpeakerPara');
+            $textRun->addText($speaker, ['bold' => true, 'size' => 12, 'color' => '2E74B5']);
+            $textRun->addText("  ");
+            $textRun->addText("[$start - $end]", ['italic' => true, 'size' => 9, 'color' => '888888']);
+
+            // Transcript Text
+            $section->addText($text, ['size' => 11], 'TextPara');
+        }
+
+        // --- Footer ---
+        $footer = $section->addFooter();
+        $footer->addPreserveText('Page {PAGE} of {NUMPAGES}', ['size' => 9, 'color' => 'AAAAAA'], ['align' => 'center']);
+
+        // Save file
         $fileName = 'transcript_' . $meetingInfo->meeting_id . '_' . date('Ymd_His') . '.docx';
         $tempPath = storage_path('app/tmp/' . $fileName);
+
+        // Ensure directory exists
         if (!file_exists(dirname($tempPath))) {
             mkdir(dirname($tempPath), 0777, true);
         }
+
         $writer = IOFactory::createWriter($phpWord, 'Word2007');
         $writer->save($tempPath);
 
@@ -283,12 +346,12 @@ class MeetingInfoController extends Controller
     private function s3(): S3Client
     {
         return new S3Client([
-            'version'                 => 'latest',
-            'region'                  => env('AWS_REGION', 'auto'),
-            'endpoint'                => env('AWS_ENDPOINT'), // https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+            'version' => 'latest',
+            'region' => env('AWS_REGION', 'auto'),
+            'endpoint' => env('AWS_ENDPOINT'), // https://<ACCOUNT_ID>.r2.cloudflarestorage.com
             'use_path_style_endpoint' => true,
-            'credentials'             => [
-                'key'    => env('AWS_ACCESS_KEY_ID'),
+            'credentials' => [
+                'key' => env('AWS_ACCESS_KEY_ID'),
                 'secret' => env('AWS_SECRET_ACCESS_KEY'),
             ],
         ]);
@@ -301,28 +364,28 @@ class MeetingInfoController extends Controller
     {
         $data = $req->validate([
             'filename' => 'required|string',
-            'mime'     => 'required|string',
+            'mime' => 'required|string',
         ]);
 
-        $ext    = pathinfo($data['filename'], PATHINFO_EXTENSION) ?: 'bin';
+        $ext = pathinfo($data['filename'], PATHINFO_EXTENSION) ?: 'bin';
         $folder = str_starts_with($data['mime'], 'video/') ? 'media/videos' : 'media/audios';
-        $key    = "{$folder}/" . Str::uuid() . '.' . $ext;
+        $key = "{$folder}/" . Str::uuid() . '.' . $ext;
 
         $s3 = $this->s3();
 
         $cmd = $s3->getCommand('PutObject', [
-            'Bucket'      => env('AWS_BUCKET'),
-            'Key'         => $key,
+            'Bucket' => env('AWS_BUCKET'),
+            'Key' => $key,
             'ContentType' => $data['mime'],
-            'CacheControl'=> 'public, max-age=31536000, immutable',
-            'ACL'         => 'private',
+            'CacheControl' => 'public, max-age=31536000, immutable',
+            'ACL' => 'private',
         ]);
 
         $presigned = $s3->createPresignedRequest($cmd, '+1 hour');
 
         return response()->json([
-            'key'     => $key,                     // << เก็บอันนี้ในฝั่ง client รอไว้
-            'url'     => (string) $presigned->getUri(),
+            'key' => $key,                     // << เก็บอันนี้ในฝั่ง client รอไว้
+            'url' => (string) $presigned->getUri(),
             'headers' => ['Content-Type' => $data['mime']], // ต้องส่งหัวเดียวกันตอน PUT
         ]);
     }
@@ -336,27 +399,27 @@ class MeetingInfoController extends Controller
             'key' => 'required|string',
         ]);
 
-        $s3   = $this->s3();
+        $s3 = $this->s3();
         $head = $s3->headObject([
             'Bucket' => env('AWS_BUCKET'),
-            'Key'    => $data['key'],
+            'Key' => $data['key'],
         ]);
 
         // map ไปยัง MeetingInfo ของ meeting นี้
         $info = MeetingInfo::firstOrCreate(['meeting_id' => $meeting->id]);
         $info->media_object_key = $data['key'];                    // << save key
-        $info->media_mime       = $head['ContentType']   ?? null;
-        $info->media_size       = $head['ContentLength'] ?? null;
-        $info->status           = 'pending';                       // พร้อมกดถอดเสียง
+        $info->media_mime = $head['ContentType'] ?? null;
+        $info->media_size = $head['ContentLength'] ?? null;
+        $info->status = 'pending';                       // พร้อมกดถอดเสียง
         $info->save();
 
         // (ถ้า bucket public และมี base URL)
         $public = rtrim(env('R2_PUBLIC_BASE_URL', ''), '/');
 
         return response()->json([
-            'ok'        => true,
-            'key'       => $data['key'],
-            'mediaUrl'  => $public ? "{$public}/{$data['key']}" : null,
+            'ok' => true,
+            'key' => $data['key'],
+            'mediaUrl' => $public ? "{$public}/{$data['key']}" : null,
             'meetingId' => $meeting->id,
         ]);
     }

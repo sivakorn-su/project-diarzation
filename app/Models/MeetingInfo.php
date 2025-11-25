@@ -10,22 +10,24 @@ class MeetingInfo extends Model
     /** @use HasFactory<\Database\Factories\MeetingInfoFactory> */
     use HasFactory;
 
-    protected $fillable =[
+    protected $fillable = [
         'description',
         'meeting_id',
         'media_paths',
-        'status'
-        ,'summaries'
-        ,'media_object_key'
+        'status',
+        'summaries',
+        'media_object_key',
+        'transcript_json',
     ];
 
     protected $casts = [
         'summaries' => 'array',
+        'transcript_json' => 'array',
     ];
 
     public function meeting()
     {
-        return $this->belongsTo(Meeting::class,'meeting_id');
+        return $this->belongsTo(Meeting::class, 'meeting_id');
     }
     public function segments()
     {
@@ -34,14 +36,15 @@ class MeetingInfo extends Model
 
     public function getMediaUrlAttribute(): ?string
     {
-    if (!$this->media_object_key) return null;
+        if (!$this->media_object_key)
+            return null;
 
-    // ถ้ามี CDN/Custom domain:
-    if (config('filesystems.disks.s3.url')) {
-        return rtrim(config('filesystems.disks.s3.url'), '/').'/'.$this->media_object_key;
-    }
+        // ถ้ามี CDN/Custom domain:
+        if (config('filesystems.disks.s3.url')) {
+            return rtrim(config('filesystems.disks.s3.url'), '/') . '/' . $this->media_object_key;
+        }
 
-    // ถ้า private: ให้ลิงก์ชั่วคราว
-    return Storage::disk('s3')->temporaryUrl($this->media_object_key, now()->addHours(6));
+        // ถ้า private: ให้ลิงก์ชั่วคราว
+        return Storage::disk('s3')->temporaryUrl($this->media_object_key, now()->addHours(6));
     }
 }

@@ -38,7 +38,7 @@ const form = useForm({
     title: '',
     start_date: '',
     end_date: '',
-    level: '',
+    level: 'info',
     user:'',
     email:'',
     user_id:'',
@@ -55,13 +55,25 @@ const closeModal = () => {
 
 const resetModalFields = () => {
     form.reset();
+    form.level = 'info';
     selectedEvent.value = null;
 };
 
-const handleDateSelect = (selectInfo: { startStr: string; endStr: string }) => {
+const handleDateSelect = (selectInfo: any) => {
     form.reset();
-    form.start_date = formatDateTimeLocal(selectInfo.startStr);
-    form.end_date = formatDateTimeLocal(selectInfo.endStr);
+    form.level = 'info';
+    
+    let start = selectInfo.start;
+    let end = selectInfo.end;
+
+    if (selectInfo.allDay) {
+        // If all day, end date is exclusive (00:00 of next day).
+        // Subtract 1 second to make it 23:59:59 of the intended last day.
+        end = new Date(end.getTime() - 1000);
+    }
+
+    form.start_date = formatDateTimeLocal(start);
+    form.end_date = formatDateTimeLocal(end);
     openModal();
 };
 
@@ -294,203 +306,203 @@ function formatMeetingDateTime(start: string, end?: string): string {
         </div>
         <Modal v-if="isOpen" @close="closeModal">
             <template #body>
-                <div v-if="authUser && authUser.id !== form.user_id && form.id" class="no-scrollbar relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 lg:p-11">
-                    <h5 class="modal-title text-theme-xl mb-2 font-semibold text-gray-800 lg:text-2xl dark:text-white/90">
-                        {{form.title}}
-                    </h5>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">From: {{form.email}}</p>
-                    <div class="mt-8">
-                        <div class="mt-6">
-                            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                                {{ formatMeetingDateTime(form.start_date, form.end_date) }}
-                            </label>
-                        </div>
-                        <div class="mt-6">
-                            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Description: {{form.description}}</label>
-                        </div>
-                        <div class="mt-6">
-                            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-
-                                Level: {{form.level ? form.level : '-' }}
-                            </label>
+                <!-- View Mode (Read-only for others) -->
+                <div v-if="authUser && authUser.id !== form.user_id && form.id" class="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900 transition-all transform duration-300">
+                    <!-- Header Banner -->
+                    <div class="h-24 bg-gradient-to-r from-blue-500 to-indigo-600 p-6 flex items-center justify-between">
+                        <h3 class="text-2xl font-bold text-white tracking-wide truncate">{{ form.title }}</h3>
+                        <div class="flex gap-2">
+                             <button @click="closeModal" class="rounded-full bg-white/20 p-2 text-white hover:bg-white/30 transition">
+                                <component :is="XIcon" class="h-5 w-5" />
+                            </button>
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-3 sm:justify-end absolute top-0 right-0 m-2 p-6">
-                        <button
+                    <div class="p-8 space-y-6">
+                        <!-- User Info -->
+                        <div class="flex items-center gap-4">
+                            <div class="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xl">
+                                {{ form.user ? form.user.charAt(0).toUpperCase() : 'U' }}
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Organizer</p>
+                                <p class="font-semibold text-gray-800 dark:text-gray-200">{{ form.user }}</p>
+                                <p class="text-xs text-gray-500">{{ form.email }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Time -->
+                        <div class="flex items-start gap-4">
+                            <div class="p-2 rounded-lg bg-orange-50 text-orange-500">
+                                <component :is="Clock" class="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Time</p>
+                                <p class="font-medium text-gray-800 dark:text-gray-200">{{ formatMeetingDateTime(form.start_date, form.end_date) }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="flex items-start gap-4">
+                            <div class="p-2 rounded-lg bg-green-50 text-green-500">
+                                <component :is="InfoIcon" class="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Description</p>
+                                <p class="text-gray-700 dark:text-gray-300 leading-relaxed">{{ form.description || 'No description provided.' }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Level Badge -->
+                        <div class="flex items-center gap-4">
+                             <div class="p-2 rounded-lg bg-purple-50 text-purple-500">
+                                <component :is="Calendar" class="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Priority Level</p>
+                                <span :class="{
+                                    'bg-sky-100 text-sky-700': form.level === 'info',
+                                    'bg-orange-100 text-orange-700': form.level === 'warning',
+                                    'bg-red-100 text-red-700': form.level === 'danger',
+                                    'bg-gray-100 text-gray-700': !form.level
+                                }" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 capitalize">
+                                    {{ form.level || 'None' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer Actions -->
+                    <div class="bg-gray-50 dark:bg-gray-800/50 px-8 py-4 flex justify-end gap-3">
+                         <button
                             v-if="form.id"
                             @click="Info(form.id)"
-                            class="btn btn-update-event bg-brand-500 hover:bg-brand-600 flex w-full justify-center rounded-lg text-gray-400 hover:text-gray-500 px-2 py-2.5 text-sm font-medium  sm:w-auto"
+                            class="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition shadow-sm font-medium text-sm"
                         >
-                        <component
-                            :is="InfoIcon"
-                            class="h-5 w-5"
-                        />
+                            <component :is="InfoIcon" class="h-4 w-4" />
+                            Details
                         </button>
-                        <button
-                            @click="closeModal"
-                            class="flex w-full justify-center text-sm font-medium text-gray-400 hover:text-gray-700 sm:w-auto rounded-full"
-                        >
-                        <component
-                            :is="XIcon"
-                            class="h-5 w-5"
-                        />
-                        </button>
-                        
                     </div>
-                    
                 </div>
 
-                <div v-else class="no-scrollbar relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 lg:p-11 dark:bg-gray-900">
-                    <div class="mt-8">
+                <!-- Edit/Create Mode -->
+                <div v-else class="relative w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900 transition-all transform duration-300">
+                    <!-- Header -->
+                    <div class="px-8 py-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/30">
                         <div>
-                            <template v-if="!form.id">
-                                <input
-                                    v-model="form.title"
-                                    type="text"
-                                    :placeholder="form.title || 'Example meeting'"
-                                    class="my-4 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 dark:focus:border-brand-800 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-blue-400 focus:outline-none focus:outline-hidden"
-                                />
-                            </template>
-                            <template v-else>
-                                <div class="text-xl font-semibold text-gray-800 dark:text-white mb-2">{{ form.title }}</div>
-                            </template>
-                            <span v-if=" form.id" class="text-sm text-gray-500 flex gap-4 my-4">
-                                <component
-                                    :is="Mail"
-                                    class="h-5 w-5"
-                                />
-                            <p class="text-sm "> {{ form.id ?  form.email : ''}}</p>
-                        
-                            </span>
-                            </div>
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white">
+                                {{ form.id ? 'Edit Meeting' : 'Schedule Meeting' }}
+                            </h3>
+                            <p class="text-sm text-gray-500 mt-1">Fill in the details below to {{ form.id ? 'update' : 'create' }} your event.</p>
+                        </div>
+                        <button @click="closeModal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+                            <component :is="XIcon" class="h-6 w-6" />
+                        </button>
+                    </div>
 
-                        <div class="flex flex-col md:flex-row md:items-end gap-4 py-4 items-center justify-center">
-                            <span class="text-gray-400 font-medium my-2"> 
-                            <component
-                            :is="Clock"
-                            class="h-5 w-5"
+                    <div class="p-8 space-y-6">
+                        <!-- Title Input -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Event Title</label>
+                            <input
+                                v-model="form.title"
+                                type="text"
+                                placeholder="e.g., Q4 Strategy Meeting"
+                                class="w-full rounded-xl border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 transition-all dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:border-indigo-400"
                             />
-                            </span>    
-                            <div class="flex-1">
-                                <label class="block text-xs font-semibold text-gray-500 mb-1">Start</label>
-                                <template v-if="!form.id">
+                        </div>
+
+                        <!-- Date Time Row -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Start Time</label>
+                                <div class="relative">
                                     <input
                                         :value="toLocalInputValue(form.start_date)"
                                         @input="form.start_date = toUTCString(($event.target as HTMLInputElement)?.value || '')"
                                         type="datetime-local"
-                                        class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-400 focus:outline-none shadow-sm"
-                                        required
+                                        class="w-full rounded-xl border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 transition-all dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                                     />
-                                </template>
-                                <template v-else>
-                                    <div class="text-gray-800 dark:text-white">{{ formatMeetingDateTime(form.start_date) }}</div>
-                                </template>
+                                </div>
                             </div>
-                            <div class="flex-1">
-                                <label class="block text-xs font-semibold text-gray-500 mb-1">End</label>
-                                <template v-if="!form.id">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">End Time</label>
+                                <div class="relative">
                                     <input
                                         :value="toLocalInputValue(form.end_date)"
                                         @input="form.end_date = toUTCString(($event.target as HTMLInputElement)?.value || '')"
                                         type="datetime-local"
-                                        class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-400 focus:outline-none shadow-sm"
-                                        required
+                                        class="w-full rounded-xl border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 transition-all dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                                     />
-                                </template>
-                                <template v-else>
-                                    <div class="text-gray-800 dark:text-white">{{ formatMeetingDateTime(form.end_date) }}</div>
-                                </template>
-                            </div>
-                            <div class="flex flex-col items-center justify-end">
-                                <!-- <label class="flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                    <input type="checkbox" class="rounded" />
-                                    All day
-                                </label> -->
+                                </div>
                             </div>
                         </div>
-                        <div class="flex flex-col md:flex-row md:items-end gap-4 py-4 items-center justify-center">
-                            <span class="text-gray-400 font-medium my-2"> 
-                            <component
-                            :is="Calendar"
-                            class="h-5 w-5"
-                            />
-                            </span>    
-                            <div class="flex-1">
-                                <label class="block text-xs font-semibold text-gray-500 mb-1">Priority</label>
-                                <template v-if="!form.id">
-                                    <select
-                                        v-model="form.level"
-                                        class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-400 focus:outline-none shadow-sm"
-                                        required
-                                        >
-                                        <option value="info">Info</option>
-                                        <option value="warning">Warning</option>
-                                        <option value="danger">Danger</option>
-                                        </select>
-                                </template>
-                                <template v-else>
-                                    <div class="text-gray-800 dark:text-white">{{ form.level? form.level : 'None Priority' }}</div>
-                                </template>
+
+                        <!-- Priority Level -->
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Priority Level</label>
+                            <div class="flex gap-4">
+                                <label class="cursor-pointer">
+                                    <input type="radio" v-model="form.level" value="info" class="peer sr-only" />
+                                    <div class="px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-600 peer-checked:border-sky-500 peer-checked:bg-sky-50 peer-checked:text-sky-700 transition-all flex items-center gap-2 hover:bg-gray-50">
+                                        <div class="w-2 h-2 rounded-full bg-sky-500"></div>
+                                        Info
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" v-model="form.level" value="warning" class="peer sr-only" />
+                                    <div class="px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-600 peer-checked:border-orange-500 peer-checked:bg-orange-50 peer-checked:text-orange-700 transition-all flex items-center gap-2 hover:bg-gray-50">
+                                        <div class="w-2 h-2 rounded-full bg-orange-500"></div>
+                                        Warning
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" v-model="form.level" value="danger" class="peer sr-only" />
+                                    <div class="px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-600 peer-checked:border-red-500 peer-checked:bg-red-50 peer-checked:text-red-700 transition-all flex items-center gap-2 hover:bg-gray-50">
+                                        <div class="w-2 h-2 rounded-full bg-red-500"></div>
+                                        Danger
+                                    </div>
+                                </label>
                             </div>
                         </div>
                     </div>
-                    <div v-if="!form.id" class="model-footer flex justify-end gap-3 pt-4 border-gray-100 mt-2 ">
-                        <button
-                            @click="handleAddOrUpdateEvent"
-                            class="flex items-center gap-2 rounded-lg bg-blue-500 hover:bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition shadow"
+
+                    <!-- Footer Actions -->
+                    <div class="bg-gray-50 dark:bg-gray-800/50 px-8 py-5 flex items-center justify-between border-t border-gray-100 dark:border-gray-800">
+                        <div>
+                             <button
+                                v-if="form.id"
+                                @click="handleDeleteEvent"
+                                class="text-red-500 hover:text-red-700 text-sm font-medium flex items-center gap-2 transition"
                             >
-                            Create
-                        </button>
-                        <button
-                            @click="closeModal"
-                            class="flex w-full justify-center text-sm font-medium text-gray-400 hover:text-gray-700 sm:w-auto rounded-full absolute top-0 right-0 m-2 p-6"
-                        >
-                        <component
-                            :is="XIcon"
-                            class="h-5 w-5"
-                        />
-                        </button>
-                    </div>
-                    <div v-if="form.id && authUser && authUser.id === form.user_id" class="flex items-center gap-3 sm:justify-end absolute top-0 right-0 m-2 p-6">
-                        <button
-                            @click="router.visit(`/meetings/${form.id}/edit`)"
-                            class="flex w-full justify-center rounded-lg text-gray-400 hover:text-blue-500 px-2 py-2.5 text-sm font-medium sm:w-auto "
-                        >
-                        <component
-                            :is="Pencil"
-                            class="h-5 w-5"
-                        />
-                        </button>
-                        <button
-                            v-if="form.id"
-                            @click="handleDeleteEvent"
-                            class="border-error-500 bg-error-500 hover:bg-error-600 flex w-full justify-center px-2 text-gray-400 hover:text-red-500  py-2.5 text-sm font-medium  sm:w-auto "
-                        >
-                        <component
-                            :is="Trash"
-                            class="h-5 w-5"
-                        />
-                        </button>
-                        <button
-                            v-if="form.id"
-                            @click="Info(form.id)"
-                            class="btn btn-update-event bg-brand-500 hover:bg-brand-600 flex w-full justify-center rounded-lg text-gray-400 hover:text-gray-500 px-2 py-2.5 text-sm font-medium  sm:w-auto"
-                        >
-                        <component
-                            :is="InfoIcon"
-                            class="h-5 w-5"
-                        />
-                        </button>
-                        <button
-                            @click="closeModal"
-                            class="flex w-full justify-center text-sm font-medium text-gray-400 hover:text-gray-700 sm:w-auto rounded-full"
-                        >
-                        <component
-                            :is="XIcon"
-                            class="h-5 w-5"
-                        />
-                        </button>
+                                <component :is="Trash" class="h-4 w-4" />
+                                Delete Event
+                            </button>
+                        </div>
+                        <div class="flex gap-3">
+                            <button
+                                @click="closeModal"
+                                class="px-5 py-2.5 rounded-xl text-gray-600 hover:bg-gray-200/50 font-medium transition dark:text-gray-300 dark:hover:bg-gray-700"
+                            >
+                                Cancel
+                            </button>
+                            
+                            <button
+                                v-if="form.id"
+                                @click="Info(form.id)"
+                                class="px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition shadow-sm font-medium flex items-center gap-2"
+                            >
+                                <component :is="InfoIcon" class="h-4 w-4" />
+                                Details
+                            </button>
+
+                            <button
+                                @click="handleAddOrUpdateEvent"
+                                class="px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                {{ form.id ? 'Save Changes' : 'Create Event' }}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </template>
