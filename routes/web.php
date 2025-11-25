@@ -23,15 +23,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/meetings/create', [MeetingController::class, 'create'])->name('meetings.create');
     Route::post('/meetings', [MeetingController::class, 'store'])->name('meetings.store');
 
-    Route::get('/meetings/{meeting}', [MeetingController::class, 'show'])->name('meetings.show');
+    // Specific routes first (before the general /meetings/{meeting} route)
+    Route::get('/meetings/{meeting}/transcript/export-docx', [MeetingInfoController::class, 'transcriptExport'])->name('transcript.exportDocx');
+    Route::get('/meetings/{meeting}/edit', [MeetingController::class, 'edit'])->name('meetings.edit');
 
     Route::post('/meetings/{meeting}/infos', [MeetingInfoController::class, 'update'])->name('description.update');
     Route::post('/meetings/{meeting}/transcript', [MeetingInfoController::class, 'transcript'])->name('transcript.update');
     Route::put('/meetings/{meeting}/transcript/update', [MeetingInfoController::class, 'transcriptUpdate'])->name('transcript.edit');
-    // Export transcript as DOCX
-    Route::get('/meetings/{meeting}/transcript/export-docx', [MeetingInfoController::class, 'transcriptExport'])->name('transcript.exportDocx');
-
-    Route::get('/meetings/{meeting}/edit', [MeetingController::class, 'edit'])->name('meetings.edit');
     Route::put('/meetings/{meeting}', [MeetingController::class, 'update'])->name('meetings.update');
 
     Route::prefix('meetings/{meeting}/transcript/segments')->group(function () {
@@ -39,7 +37,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('{segment}', [TranscriptSegmentsController::class, 'destroy']); // ลบราย segment
     });
 
-        // Transcript CRUD
+    // General route last (to catch any specific meeting ID)
+    Route::get('/meetings/{meeting}', [MeetingController::class, 'show'])->name('meetings.show');
+
+    // Transcript CRUD
     // Route::resource('transcripts', TranscriptController::class);
 
     // // เพิ่ม endpoint สำหรับสั่งประมวลผล/ถอดเสียง
@@ -95,5 +96,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 });
 
-require __DIR__.'/settings.php';
-require __DIR__.'/auth.php';
+require __DIR__ . '/settings.php';
+require __DIR__ . '/auth.php';
