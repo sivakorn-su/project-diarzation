@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class TranscriptSegments extends Model
 {
+    use \Illuminate\Database\Eloquent\Factories\HasFactory;
     protected $fillable = [
         'meeting_info_id',
         'transcript_id',
@@ -29,18 +30,19 @@ class TranscriptSegments extends Model
 
     protected $casts = [
         'start' => 'decimal:3',
-        'end'   => 'decimal:3',
+        'end' => 'decimal:3',
         'avg_probability' => 'decimal:4',
-        'confidence'        => 'float',
-        'has_overlap'       => 'boolean',
-        'overlap_ratio'     => 'float',
+        'confidence' => 'float',
+        'has_overlap' => 'boolean',
+        'overlap_ratio' => 'float',
         'overlap_intervals' => 'array',
-        'is_remove'         => 'boolean',
-        'overlap_detail'    => 'array',
-        'remove_reason'     => 'string',
+        'is_remove' => 'boolean',
+        'overlap_detail' => 'array',
+        'remove_reason' => 'string',
     ];
 
-    public function meetingInfo() {
+    public function meetingInfo()
+    {
         return $this->belongsTo(MeetingInfo::class, 'meeting_info_id');
     }
 }

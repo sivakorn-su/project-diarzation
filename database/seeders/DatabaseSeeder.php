@@ -13,21 +13,25 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test',
+        // สร้าง Users
+        $testUser = User::factory()->create([
+            'name' => 'Test User',
             'email' => 'test@gmail.com',
-            'password'=>'password'
+            'password' => 'password'
         ]);
-        User::factory()->create([
+
+        $teslaUser = User::factory()->create([
             'name' => 'Tesla',
             'email' => 'tesla@gmail.com',
-            'password'=>'password'
+            'password' => 'password'
         ]);
+
+        $this->command->info('Created 2 users');
+
+        // สร้าง Meetings (จะสร้าง MeetingInfo แบบ inline ผ่าน factory)
         $this->call(MeetingSeeder::class);
-        $this->call([
-            TranscriptSeeder::class,
-        ]);
+
+        // สร้าง MeetingInfo และ TranscriptSegments สำหรับแต่ละ Meeting
+        $this->call(MeetingInfoSeeder::class);
     }
 }
