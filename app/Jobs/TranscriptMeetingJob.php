@@ -102,6 +102,15 @@ class TranscriptMeetingJob implements ShouldQueue
 
         $data = $result['data'];
 
+        // Debug: Log API response to check summaries field
+        Log::info('TranscriptMeetingJob API Response Debug', [
+            'meeting_info_id' => $meetingInfo->id,
+            'has_summaries_key' => isset($result['summaries']),
+            'summaries_value' => $result['summaries'] ?? null,
+            'summaries_type' => isset($result['summaries']) ? gettype($result['summaries']) : 'not_set',
+            'response_keys' => array_keys($result),
+        ]);
+
         // 3) เขียนผลลัพธ์ลง DB
         DB::transaction(function () use ($meetingInfo, $data, $result) {
             TranscriptSegments::where('meeting_info_id', $meetingInfo->id)->delete();
@@ -127,9 +136,24 @@ class TranscriptMeetingJob implements ShouldQueue
                 ]);
             }
 
-            $meetingInfo->update([
+            $updateData = [
                 'status' => 'done',
                 'summaries' => $result['summaries'] ?? null,
+            ];
+
+            Log::info('TranscriptMeetingJob Before Update', [
+                'meeting_info_id' => $meetingInfo->id,
+                'update_data' => $updateData,
+            ]);
+
+            $meetingInfo->update($updateData);
+
+            // Verify the save
+            $meetingInfo->refresh();
+            Log::info('TranscriptMeetingJob After Update', [
+                'meeting_info_id' => $meetingInfo->id,
+                'saved_summaries' => $meetingInfo->summaries,
+                'saved_status' => $meetingInfo->status,
             ]);
         });
     }
