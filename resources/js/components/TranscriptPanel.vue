@@ -109,7 +109,7 @@
                 </div>
               </div>
             </div>
-            <p class="break-words leading-relaxed text-gray-800 dark:text-gray-200">{{ row.item.text }}</p>
+            <p class="break-words break-all whitespace-pre-wrap leading-relaxed text-gray-800 dark:text-gray-200">{{ row.item.text }}</p>
           </div>
         </div>
 
