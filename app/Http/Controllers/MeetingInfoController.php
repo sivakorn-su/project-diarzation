@@ -251,6 +251,28 @@ class MeetingInfoController extends Controller
         if (is_string($transcript)) {
             $transcript = json_decode($transcript, true);
         }
+
+        // Fallback: ถ้าไม่มี transcript_json หรือ data ว่าง ให้ดึงจาก Relation segments
+        if (!$transcript || !isset($transcript['data']) || empty($transcript['data'])) {
+            $segments = $meetingInfo->segments()
+                ->orderBy('idx')
+                ->get();
+
+            if ($segments->isNotEmpty()) {
+                $transcript = [
+                    'data' => $segments->map(function ($s) {
+                        return [
+                            'start' => $s->start,
+                            'end' => $s->end,
+                            'speaker' => $s->speaker,
+                            'text' => $s->text,
+                            'is_remove' => (bool) $s->is_remove,
+                        ];
+                    })->toArray()
+                ];
+            }
+        }
+
         if (!$transcript || !isset($transcript['data'])) {
             return response()->json(['error' => 'No transcript data found.'], 404);
         }
@@ -271,24 +293,25 @@ class MeetingInfoController extends Controller
 
         // --- Header with Logo ---
         $header = $section->addHeader();
-        $table = $header->addTable(['width' => 100 * 50, 'unit' => 'pct', 'borderBottomSize' => 6]);
+        $table = $header->addTable(['width' => 5000, 'unit' => 'pct', 'borderBottomSize' => 6]);
         $table->addRow();
 
-        // Logo Cell
-        $logoCell = $table->addCell(2000);
+        // Single Cell for Vertical Layout
+        $cell = $table->addCell(10000);
+
+        // Logo
         $logoPath = public_path('apple-touch-icon.png');
         if (file_exists($logoPath)) {
-            $logoCell->addImage($logoPath, [
+            $cell->addImage($logoPath, [
                 'width' => 50,
                 'height' => 50,
-                'align' => 'left'
+                'align' => 'center'
             ]);
         }
 
-        // Title Cell
-        $titleCell = $table->addCell(8000);
-        $titleCell->addText('Meeting Transcript', ['bold' => true, 'size' => 18, 'color' => '333333'], ['align' => 'right', 'spaceAfter' => 0]);
-        $titleCell->addText('Generated on: ' . date('d M Y H:i'), ['size' => 9, 'color' => '777777'], ['align' => 'right']);
+        // Title & Date
+        $cell->addText('Meeting Transcript', ['bold' => true, 'size' => 18, 'color' => '333333'], ['align' => 'center', 'spaceAfter' => 0]);
+        $cell->addText('Generated on: ' . date('d M Y H:i'), ['size' => 9, 'color' => '777777'], ['align' => 'center']);
 
         // --- Metadata Section ---
         $section->addTextBreak(1);
@@ -296,6 +319,9 @@ class MeetingInfoController extends Controller
         $section->addText('ID: ' . $meetingInfo->meeting_id, ['size' => 10]);
         if ($meetingInfo->created_at) {
             $section->addText('Date: ' . $meetingInfo->created_at->format('d F Y, H:i'), ['size' => 10]);
+        }
+        if ($meetingInfo->meeting && $meetingInfo->meeting->user) {
+            $section->addText('Created By: ' . $meetingInfo->meeting->user->name, ['size' => 10]);
         }
         $section->addTextBreak(1);
 
@@ -309,6 +335,7 @@ class MeetingInfoController extends Controller
             $startSeconds = $item['start'] ?? 0;
             $endSeconds = $item['end'] ?? 0;
             $text = $item['text'] ?? '';
+            $isRemove = !empty($item['is_remove']);
 
             // Format time
             $start = gmdate("H:i:s", (int) $startSeconds);
@@ -320,8 +347,68 @@ class MeetingInfoController extends Controller
             $textRun->addText("  ");
             $textRun->addText("[$start - $end]", ['italic' => true, 'size' => 9, 'color' => '888888']);
 
+            if ($isRemove) {
+                $textRun->addText(" [REMOVED]", ['bold' => true, 'size' => 9, 'color' => 'FF0000']);
+            }
+
             // Transcript Text
-            $section->addText($text, ['size' => 11], 'TextPara');
+            $textStyle = ['size' => 11];
+            if ($isRemove) {
+                $textStyle['color'] = '999999';
+                $textStyle['strikethrough'] = true;
+            }
+            $section->addText($text, $textStyle, 'TextPara');
+        }
+
+        // --- Summaries Section ---
+        $summaries = $meetingInfo->summaries;
+        if (!empty($summaries) && is_array($summaries)) {
+            $section->addPageBreak();
+            $section->addText('Meeting Summary', ['bold' => true, 'size' => 16, 'color' => '2E74B5']);
+            $section->addTextBreak(1);
+
+            foreach ($summaries as $key => $value) {
+                // Skip empty values
+                if (empty($value))
+                    continue;
+
+                // Format Header: key_points -> Key Points
+                $headerTitle = ucwords(str_replace('_', ' ', $key));
+                $section->addText($headerTitle, ['bold' => true, 'size' => 13, 'color' => '444444', 'underline' => 'single']);
+
+                if (is_string($value)) {
+                    $section->addText($value, ['size' => 11], 'TextPara');
+                } elseif (is_array($value)) {
+                    // Check if associative array (like participants) or list
+                    $isAssoc = array_keys($value) !== range(0, count($value) - 1);
+
+                    if ($isAssoc) {
+                        foreach ($value as $subKey => $subValue) {
+                            if (is_string($subValue)) {
+                                $section->addText(ucwords(str_replace('_', ' ', $subKey)) . ": " . $subValue, ['size' => 11], 'TextPara');
+                            }
+                        }
+                    } else {
+                        foreach ($value as $item) {
+                            if (is_string($item)) {
+                                $section->addListItem($item, 0, null, 'multilevel');
+                            } elseif (is_array($item)) {
+                                // Handle complex objects like action items
+                                $parts = [];
+                                foreach ($item as $k => $v) {
+                                    if (is_string($v) || is_numeric($v)) {
+                                        $parts[] = ucwords(str_replace('_', ' ', $k)) . ": $v";
+                                    }
+                                }
+                                if (!empty($parts)) {
+                                    $section->addListItem(implode(' | ', $parts), 0, null, 'multilevel');
+                                }
+                            }
+                        }
+                    }
+                }
+                $section->addTextBreak(1);
+            }
         }
 
         // --- Footer ---
