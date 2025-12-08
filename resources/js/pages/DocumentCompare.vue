@@ -201,13 +201,13 @@
           <div class="space-y-4">
             <div
               v-for="(change, index) in comparisonResults"
-              :key="change.field_name + index"
+              :key="change.field + index"
               class="rounded-2xl border p-5 bg-white dark:bg-gray-900/60"
               :class="changeStyles(change.severity).border"
             >
               <div class="flex flex-wrap items-start gap-3">
                 <div class="flex-1">
-                  <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ change.field_name }}</p>
+                  <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ change.field }}</p>
                   <p class="text-sm text-gray-500 dark:text-gray-300">{{ change.description || 'ไม่มีคำอธิบายเพิ่มเติม' }}</p>
                 </div>
                 <span class="text-xs font-semibold px-3 py-1 rounded-full" :class="changeStyles(change.severity).badge">
@@ -218,31 +218,17 @@
               <div class="mt-4 grid gap-4 md:grid-cols-2">
                 <div class="rounded-2xl p-3 bg-rose-50/70 dark:bg-rose-950/30">
                   <p class="text-xs uppercase text-rose-500 dark:text-rose-200">ต้นฉบับ</p>
-                  <p class="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-line">{{ change.old_value }}</p>
+                  <p class="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-line">{{ change.old }}</p>
                 </div>
                 <div class="rounded-2xl p-3 bg-emerald-50/70 dark:bg-emerald-950/30">
                   <p class="text-xs uppercase text-emerald-600 dark:text-emerald-300">ฉบับแก้ไข</p>
-                  <p class="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-line">{{ change.new_value }}</p>
+                  <p class="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-line">{{ change.new }}</p>
                 </div>
               </div>
 
               <div class="mt-3 flex flex-wrap gap-2 text-xs">
-                <span class="px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 uppercase tracking-wide">{{ change.field_type }}</span>
-                <span class="px-2 py-1 rounded-full" :class="changeStyles(change.severity).chip">{{ change.change_type }}</span>
-                <span
-                  class="px-2 py-1 rounded-full"
-                  :class="change.is_semantic_equivalent ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-200'"
-                >
-                  {{ change.is_semantic_equivalent ? 'ความหมายใกล้เคียง' : 'ความหมายเปลี่ยนแปลง' }}
-                </span>
-              </div>
-
-              <div class="mt-4 rounded-2xl border border-gray-200 dark:border-gray-800 p-3 flex items-start gap-3 text-sm text-gray-600 dark:text-gray-300">
-                <AlertCircle class="h-4 w-4 text-amber-500" />
-                <div>
-                  <p class="font-medium">ผลกระทบ</p>
-                  <p>{{ change.impact || 'ไม่มีข้อมูล' }}</p>
-                </div>
+                <span class="px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 uppercase tracking-wide">{{ change.type }}</span>
+                <span v-if="change.page" class="px-2 py-1 rounded-full bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-200">หน้า {{ change.page }}</span>
               </div>
             </div>
           </div>
@@ -266,15 +252,13 @@ import { AlertCircle, FileDiff, Loader, ScanText, UploadCloud } from 'lucide-vue
 import type { LucideIcon } from 'lucide-vue-next'
 
 interface ComparisonResult {
-  field_name: string
-  field_type: string
-  old_value: string
-  new_value: string
-  change_type: string
+  field: string
+  type: string
+  old: string
+  new: string
   severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | string
   description?: string
-  impact?: string
-  is_semantic_equivalent?: boolean
+  page?: number
 }
 
 type FileSlot = 'original' | 'revised'
