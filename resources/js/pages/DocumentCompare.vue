@@ -201,34 +201,84 @@
           <div class="space-y-4">
             <div
               v-for="(change, index) in comparisonResults"
-              :key="change.field + index"
+              :key="change.field_name + index"
               class="rounded-2xl border p-5 bg-white dark:bg-gray-900/60"
               :class="changeStyles(change.severity).border"
             >
               <div class="flex flex-wrap items-start gap-3">
                 <div class="flex-1">
-                  <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ change.field }}</p>
+                  <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ change.field_name }}</p>
                   <p class="text-sm text-gray-500 dark:text-gray-300">{{ change.description || 'ไม่มีคำอธิบายเพิ่มเติม' }}</p>
+                  <p v-if="change.difference" class="mt-1 text-sm text-amber-600 dark:text-amber-400">ความแตกต่าง: {{ change.difference }}</p>
                 </div>
-                <span class="text-xs font-semibold px-3 py-1 rounded-full" :class="changeStyles(change.severity).badge">
-                  {{ severityLabels[change.severity] || change.severity }}
-                </span>
+                <div class="flex flex-col items-end gap-2">
+                  <span class="text-xs font-semibold px-3 py-1 rounded-full" :class="changeStyles(change.severity).badge">
+                    {{ severityLabels[change.severity] || change.severity }}
+                  </span>
+                  <span v-if="change.is_semantic_equivalent" class="text-xs px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300">
+                    ความหมายเหมือนกัน
+                  </span>
+                </div>
               </div>
 
               <div class="mt-4 grid gap-4 md:grid-cols-2">
                 <div class="rounded-2xl p-3 bg-rose-50/70 dark:bg-rose-950/30">
-                  <p class="text-xs uppercase text-rose-500 dark:text-rose-200">ต้นฉบับ</p>
-                  <p class="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-line">{{ change.old }}</p>
+                  <div class="flex items-center justify-between mb-1">
+                    <p class="text-xs uppercase text-rose-500 dark:text-rose-200">ต้นฉบับ (Doc 1)</p>
+                    <span v-if="change.doc1_page" class="text-xs px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-300">หน้า {{ change.doc1_page }}</span>
+                  </div>
+                  <p class="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-line">{{ change.old_value ?? '-' }}</p>
                 </div>
                 <div class="rounded-2xl p-3 bg-emerald-50/70 dark:bg-emerald-950/30">
-                  <p class="text-xs uppercase text-emerald-600 dark:text-emerald-300">ฉบับแก้ไข</p>
-                  <p class="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-line">{{ change.new }}</p>
+                  <div class="flex items-center justify-between mb-1">
+                    <p class="text-xs uppercase text-emerald-600 dark:text-emerald-300">ฉบับแก้ไข (Doc 2)</p>
+                    <span v-if="change.doc2_page" class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300">หน้า {{ change.doc2_page }}</span>
+                  </div>
+                  <p class="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-line">{{ change.new_value ?? '-' }}</p>
                 </div>
               </div>
 
               <div class="mt-3 flex flex-wrap gap-2 text-xs">
-                <span class="px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 uppercase tracking-wide">{{ change.type }}</span>
-                <span v-if="change.page" class="px-2 py-1 rounded-full bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-200">หน้า {{ change.page }}</span>
+                <span class="px-2 py-1 rounded-full uppercase tracking-wide" :class="changeTypeStyles(change.change_type)">{{ changeTypeLabels[change.change_type] || change.change_type }}</span>
+                <span v-if="change.field_type" class="px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">{{ change.field_type }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Raw Documents Section -->
+          <div v-if="document1Raw || document2Raw" class="mt-8">
+            <div class="flex items-center gap-3 mb-4">
+              <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">ข้อความจากเอกสาร</h3>
+              <button
+                type="button"
+                @click="showRawDocuments = !showRawDocuments"
+                class="text-xs px-3 py-1 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+              >
+                {{ showRawDocuments ? 'ซ่อน' : 'แสดง' }}
+              </button>
+            </div>
+            
+            <div v-show="showRawDocuments" class="grid gap-4 lg:grid-cols-2">
+              <!-- Document 1 Raw -->
+              <div v-if="document1Raw" class="rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50/50 dark:bg-rose-950/20 overflow-hidden">
+                <div class="px-4 py-3 bg-rose-100/70 dark:bg-rose-900/40 border-b border-rose-200 dark:border-rose-800">
+                  <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-rose-500"></div>
+                    <h4 class="font-semibold text-rose-700 dark:text-rose-300">เอกสารต้นฉบับ (Doc 1)</h4>
+                  </div>
+                </div>
+                <div class="p-4 max-h-[600px] overflow-y-auto doc-content" v-html="formatRawContent(document1Raw)"></div>
+              </div>
+              
+              <!-- Document 2 Raw -->
+              <div v-if="document2Raw" class="rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 overflow-hidden">
+                <div class="px-4 py-3 bg-emerald-100/70 dark:bg-emerald-900/40 border-b border-emerald-200 dark:border-emerald-800">
+                  <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+                    <h4 class="font-semibold text-emerald-700 dark:text-emerald-300">เอกสารฉบับแก้ไข (Doc 2)</h4>
+                  </div>
+                </div>
+                <div class="p-4 max-h-[600px] overflow-y-auto doc-content" v-html="formatRawContent(document2Raw)"></div>
               </div>
             </div>
           </div>
@@ -252,13 +302,17 @@ import { AlertCircle, FileDiff, Loader, ScanText, UploadCloud } from 'lucide-vue
 import type { LucideIcon } from 'lucide-vue-next'
 
 interface ComparisonResult {
-  field: string
-  type: string
-  old: string
-  new: string
+  field_name: string
+  field_type: string
+  old_value: string | null
+  new_value: string | null
+  doc1_page: number | null
+  doc2_page: number | null
+  change_type: 'removed' | 'relocated' | 'modified' | 'added' | string
   severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | string
-  description?: string
-  page?: number
+  description: string | null
+  difference: string | null
+  is_semantic_equivalent: boolean
 }
 
 type FileSlot = 'original' | 'revised'
@@ -316,6 +370,9 @@ const isSubmitting = ref(false)
 const statusMessage = ref<string | null>(null)
 const analyzedAt = ref<string | null>(null)
 const comparisonResults = ref<ComparisonResult[]>([])
+const document1Raw = ref<string | null>(null)
+const document2Raw = ref<string | null>(null)
+const showRawDocuments = ref(false)
 
 const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? ''
 const analyzeEndpoint =(import.meta.env.VITE_OCR_COMPARE_ENDPOINT as string | undefined) ||''
@@ -374,6 +431,25 @@ const severityStyles: Record<string, { badge: string; border: string; summaryBor
     summaryBg: 'bg-gray-50/70 dark:bg-gray-900/40',
     chip: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-200',
   },
+}
+
+const changeTypeLabels: Record<string, string> = {
+  removed: 'ถูกลบ',
+  relocated: 'ย้ายตำแหน่ง',
+  modified: 'แก้ไข',
+  added: 'เพิ่มใหม่',
+}
+
+const changeTypeStylesMap: Record<string, string> = {
+  removed: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  relocated: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+  modified: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  added: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  default: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
+}
+
+function changeTypeStyles(changeType: string): string {
+  return changeTypeStylesMap[changeType] || changeTypeStylesMap.default
 }
 
 const severitySummary = computed(() =>
@@ -510,6 +586,11 @@ async function submitComparison() {
       }
       return weight(a.severity) - weight(b.severity)
     })
+    
+    // Extract raw documents if available
+    document1Raw.value = payload?.document1_raw ?? null
+    document2Raw.value = payload?.document2_raw ?? null
+    
     analyzedAt.value = formatDateTime(new Date())
     statusMessage.value = (payload && !Array.isArray(payload) ? payload?.message : null) || `พบ ${changes.length} รายการที่มีการเปลี่ยนแปลง`
   } catch (error) {
@@ -518,4 +599,139 @@ async function submitComparison() {
     isSubmitting.value = false
   }
 }
+
+/**
+ * Format raw document content - convert HTML tables to styled tables
+ * and preserve other text formatting
+ */
+function formatRawContent(content: string): string {
+  if (!content) return ''
+  
+  // Process content - keep HTML tables but escape other text for safety
+  // Split by page markers and process each section
+  let formatted = content
+  
+  // Add page separator styling
+  formatted = formatted.replace(
+    /===\s*Page\s*(\d+)\s*===/g,
+    '<div class="page-separator"><span class="page-badge">หน้า $1</span></div>'
+  )
+  
+  // Convert newlines to <br> for non-table content, but be careful with tables
+  // First, protect tables by replacing them with placeholders
+  const tables: string[] = []
+  formatted = formatted.replace(/<table[\s\S]*?<\/table>/gi, (match) => {
+    tables.push(match)
+    return `__TABLE_PLACEHOLDER_${tables.length - 1}__`
+  })
+  
+  // Now convert newlines to <br>
+  formatted = formatted.replace(/\n/g, '<br>')
+  
+  // Restore tables
+  tables.forEach((table, index) => {
+    formatted = formatted.replace(`__TABLE_PLACEHOLDER_${index}__`, table)
+  })
+  
+  // Style bold markers
+  formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-gray-800 dark:text-gray-100">$1</strong>')
+  
+  return formatted
+}
 </script>
+
+<style scoped>
+/* Document content styles */
+.doc-content {
+  font-size: 0.875rem;
+  line-height: 1.625;
+  color: #374151;
+}
+
+:root.dark .doc-content {
+  color: #d1d5db;
+}
+
+.doc-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.75rem;
+}
+
+.doc-content :deep(table tr:first-child td),
+.doc-content :deep(table th) {
+  background-color: #f3f4f6;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+:root.dark .doc-content :deep(table tr:first-child td),
+:root.dark .doc-content :deep(table th) {
+  background-color: #1f2937;
+  color: #e5e7eb;
+}
+
+.doc-content :deep(table td),
+.doc-content :deep(table th) {
+  border: 1px solid #d1d5db;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+:root.dark .doc-content :deep(table td),
+:root.dark .doc-content :deep(table th) {
+  border-color: #4b5563;
+}
+
+.doc-content :deep(table tr:nth-child(even)) {
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+:root.dark .doc-content :deep(table tr:nth-child(even)) {
+  background-color: rgba(17, 24, 39, 0.5);
+}
+
+.doc-content :deep(table tr:hover) {
+  background-color: #f9fafb;
+}
+
+:root.dark .doc-content :deep(table tr:hover) {
+  background-color: rgba(31, 41, 55, 0.5);
+}
+
+.doc-content :deep(.page-separator) {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+.doc-content :deep(.page-separator)::before,
+.doc-content :deep(.page-separator)::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: #d1d5db;
+}
+
+:root.dark .doc-content :deep(.page-separator)::before,
+:root.dark .doc-content :deep(.page-separator)::after {
+  background-color: #4b5563;
+}
+
+.doc-content :deep(.page-badge) {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  background-color: #e0f2fe;
+  color: #0369a1;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+:root.dark .doc-content :deep(.page-badge) {
+  background-color: rgba(12, 74, 110, 0.4);
+  color: #7dd3fc;
+}
+</style>
