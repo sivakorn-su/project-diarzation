@@ -145,7 +145,9 @@ class MeetingInfoController extends Controller
         // อัปเดตสถานะ แล้วสั่งคิว
         $meetingInfo->update(['status' => 'processing']);
 
-        TranscriptMeetingJob::dispatch($meetingInfo->id)
+        $language = $request->input('language', 'th');
+
+        TranscriptMeetingJob::dispatch($meetingInfo->id, $language)
             ->onQueue('default');
 
         return back()->with('success', 'Transcription started.');

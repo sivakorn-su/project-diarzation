@@ -38,7 +38,7 @@
 
     <!-- Toolbar -->
     <div class="flex-1 flex flex-col">
-      <div class="flex flex-wrap items-center gap-3 mb-3">
+      <div v-if="transcript_json?.data?.length" class="flex flex-wrap items-center gap-3 mb-3">
         <div class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
           <component :is="ListFilterIcon" class="h-5 w-5 text-gray-500" />
           <select
@@ -118,32 +118,80 @@
         </div>
       </div>
 
-      <!-- Empty state -->
-      <div v-else class="flex flex-col items-center w-full">
-        <button
-          class="w-42 my-8 aspect-square rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 shadow hover:bg-gray-100 dark:hover:bg-gray-800 transition disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center"
-          @click="reTranscript"
-          :disabled="!canReTranscript"
-          type="button"
-        >
-          <div v-if="busy" class="flex flex-col items-center justify-center gap-2 text-sm text-blue-600">
-            <svg class="w-10 h-10 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-            </svg>
-            <span>Processing</span>
-          </div>
-          <div v-else class="flex flex-col items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-200">
-            <RefreshCcw class="h-8 w-8 text-gray-400" />
-            <span>Transcript</span>
-          </div>
-        </button>
-        <transition name="fade">
-          <div v-if="success" class="mt-3 text-green-600 text-sm font-medium">Transcript updated!</div>
-        </transition>
-        <transition name="fade">
-          <div v-if="error" class="mt-3 text-red-600 text-sm font-medium">{{ error }}</div>
-        </transition>
+      <!-- Empty state / Setup Panel -->
+      <div v-else class="flex flex-col items-center justify-center py-12 w-full">
+        
+        <div class="w-full max-w-sm bg-white dark:bg-gray-800/50 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 sm:p-8 transition-all hover:shadow-md">
+            
+            <!-- Icon -->
+            <div class="mx-auto w-16 h-16 bg-blue-50 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mb-6">
+                <FileAudioIcon class="w-8 h-8 text-blue-600 dark:text-blue-400" v-if="isAudio" />
+                <VideoIcon class="w-8 h-8 text-blue-600 dark:text-blue-400" v-else />
+            </div>
+
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2 text-center">Transcribe Recording</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
+                Generate text from your file using AI. Select the spoken language for best results.
+            </p>
+
+            <!-- Language Selector -->
+            <div class="mb-6 text-left">
+                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                    Spoken Language
+                </label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                         <LanguagesIcon class="h-4 w-4 text-gray-400" />
+                    </div>
+                    <select v-model="form.language" class="appearance-none block w-full rounded-xl border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 py-2.5 pl-10 pr-10 text-sm focus:border-blue-500 focus:ring-blue-500 dark:text-white shadow-sm transition-colors cursor-pointer">
+                        <option value="th">🇹🇭 Thai (ภาษาไทย)</option>
+                        <option value="en">🇬🇧 English</option>
+                        <option value="ja">🇯🇵 Japanese</option>
+                        <option value="zh">🇨🇳 Chinese</option>
+                        <option value="ko">🇰🇷 Korean</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Button -->
+            <button
+                @click="reTranscript"
+                :disabled="!canReTranscript || busy"
+                class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white transition-all shadow-md shadow-blue-500/20 active:scale-[0.98]"
+                :class="busy ? 'bg-blue-400 cursor-wait' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/30'"
+            >
+                <div v-if="busy" class="flex items-center gap-2">
+                    <svg class="w-5 h-5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                    </svg>
+                    <span>Processing...</span>
+                </div>
+                <div v-else class="flex items-center gap-2">
+                    <SparklesIcon class="w-5 h-5" />
+                    <span>Start Transcription</span>
+                </div>
+            </button>
+            
+             <!-- Status Messages -->
+            <div class="mt-4 min-h-[20px]">
+                <transition name="fade">
+                    <p v-if="success" class="flex items-center justify-center gap-1.5 text-sm text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 py-1.5 px-3 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                        <CheckCircleIcon class="w-4 h-4" />
+                        <span>Transcript updated!</span>
+                    </p>
+                </transition>
+                <transition name="fade">
+                    <p v-if="error" class="flex items-center justify-center gap-1.5 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 py-1.5 px-3 rounded-lg border border-red-200 dark:border-red-800">
+                        <AlertCircleIcon class="w-4 h-4" />
+                        <span>{{ error }}</span>
+                    </p>
+                </transition>
+            </div>
+        </div>
       </div>
     </div>
 
@@ -307,7 +355,7 @@
 
   <script setup lang="ts">
   import { ref, computed, reactive, watch, PropType, onMounted, onBeforeUnmount, watchEffect } from 'vue';
-  import { RefreshCcw, FileUpIcon, PencilIcon, TrashIcon, LanguagesIcon, ShieldCheckIcon, InfoIcon } from 'lucide-vue-next';
+  import { RefreshCcw, FileUpIcon, PencilIcon, TrashIcon, LanguagesIcon, ShieldCheckIcon, InfoIcon, SparklesIcon, CheckCircleIcon, AlertCircleIcon, FileAudioIcon, VideoIcon } from 'lucide-vue-next';
   import { useForm } from '@inertiajs/vue3';
   import Modal from '@/components/Modal.vue';
   import videojs from 'video.js';
@@ -578,7 +626,9 @@
   }
 
   /* ===== Other actions ===== */
-  const form = useForm({});
+  const form = useForm({
+    language: 'th'
+  });
 
   const busy = computed(() => form.processing || localSubmitting.value || statusLower.value === 'processing');
 

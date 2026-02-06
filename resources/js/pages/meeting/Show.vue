@@ -439,7 +439,7 @@ const closeSpeakerModal = () => speakerModalOpen.value = false;
             </p>
             </div>
 
-          <div class="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div v-if="hasTranscript" class="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
             <button type="button" @click="showFullView = true"
               :class="['px-3 py-1.5 text-sm transition',
                        showFullView ? 'bg-sky-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800']">

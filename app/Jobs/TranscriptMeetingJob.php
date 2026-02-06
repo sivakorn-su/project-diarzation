@@ -24,7 +24,7 @@ class TranscriptMeetingJob implements ShouldQueue
     public int $timeout = 3600;   // 1 ชม.
     public bool $failOnTimeout = true;
 
-    public function __construct(public int $meetingInfoId)
+    public function __construct(public int $meetingInfoId, public ?string $language = 'th')
     {
     }
 
@@ -83,7 +83,8 @@ class TranscriptMeetingJob implements ShouldQueue
         $resp = $client->post($api, [
             'headers' => ['Accept' => 'application/json'],
             'json' => [
-                'url' => $presignedUrl
+                'url' => $presignedUrl,
+                'language' => $this->language
             ],
         ]);
 
