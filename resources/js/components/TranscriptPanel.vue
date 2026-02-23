@@ -135,7 +135,7 @@
             </p>
 
             <!-- Language Selector -->
-            <div class="mb-6 text-left">
+            <div v-if="statusLower !== 'processing'" class="mb-6 text-left">
                 <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
                     Spoken Language
                 </label>
